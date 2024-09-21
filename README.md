@@ -3,9 +3,9 @@ Implementation of a small compiler for my language.
 
 # Compiling the Flex and Bison files
 
--flex scanner.l
--bison -d parser.y
--gcc -lfl lex.yy.c parser.tab.c
+1. flex scanner.l
+2. bison -d parser.y
+3. gcc -lfl lex.yy.c parser.tab.c
 
 # Running the executable
 
