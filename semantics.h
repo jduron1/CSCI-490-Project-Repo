@@ -5,10 +5,12 @@
 #define INT_TYPE 1
 #define REAL_TYPE 2
 #define CHAR_TYPE 3
-#define ARR_TYPE 4
-#define PTR_TYPE 5
-#define FUNC_TYPE 6
-#define BOOL_TYPE 7
+#define STR_TYPE 4
+#define BOOL_TYPE 5
+#define ARR_TYPE 6
+#define PTR_TYPE 7
+#define FUNC_TYPE 8
+#define VOID_TYPE 9
 
 #define NONE 0
 #define ARITH_OP 1

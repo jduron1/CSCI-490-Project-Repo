@@ -4,6 +4,7 @@
 	#include <string.h>
     #include "symbol_table.h"
     #include "semantics.h"
+    #include "ast.h"
 	#include "parser.tab.h"
 
     extern int yylineno;
@@ -12,6 +13,7 @@
 %}
 
 %option noyywrap
+%x MULTI_LINE
 
 /* Keyword definitions */
 
@@ -41,12 +43,11 @@ INTEGER             [0-9]+
 DECIMAL             [0-9]+(\.[0-9]+)
 
 /* String literal definitions */
-CHARACTER           \'([^\n]|\\\n)\'
-STRING              \"([^\n]|\\\n)*\"
+CHARACTER           \'[ -~]\'|\'\\[nftrbv]\'
+STRING              \"[ -~]*\"
 
 /* Comment definitions */
 SINGLE_LINE         \#[^*].*
-MULTI_LINE          \#\*([^*]|\*+[^*#])*\*+\#
 
 /* Whitespace definition */
 WHITESPACE          [\ \f\r\t\v]+
@@ -54,7 +55,12 @@ WHITESPACE          [\ \f\r\t\v]+
 %%
 
 {SINGLE_LINE}       { /* Ignore comments */ }
-{MULTI_LINE}        { /* Ignore comments */ }
+
+"#*"                { BEGIN(MULTI_LINE); }
+<MULTI_LINE>"*#"    { BEGIN(INITIAL); }
+<MULTI_LINE>[^*\n]+ { /* Ignore comments */ }
+<MULTI_LINE>"*"     { /* Ignore comments */ }
+<MULTI_LINE>\n      { yylineno++; }
 
 {CARACTER}          { return CARACTER; }
 {BOOLEANO}          { return BOOLEANO; }
@@ -111,10 +117,10 @@ WHITESPACE          [\ \f\r\t\v]+
                         return IDENTIFIER;
                     }
 
-{INTEGER}           { yylval.integer = atoi(yytext); return INTEGER; }
-{DECIMAL}           { yylval.real = atof(yytext); return DECIMAL; }
-{CHARACTER}         { yylval.character = yytext[0]; return CHARACTER; }
-{STRING}            { yylval.string = (char*)malloc(yyleng * sizeof(char)); strcpy(yylval.string, yytext); return STRING; }
+{INTEGER}           { yylval.var.integer = atoi(yytext); return INTEGER; }
+{DECIMAL}           { yylval.var.real = atof(yytext); return DECIMAL; }
+{CHARACTER}         { yylval.var.character = yytext[0]; return CHARACTER; }
+{STRING}            { yylval.var.string = strdup(yytext); return STRING; }
 
 \n                  { yylineno++; }
 {WHITESPACE}        { /* Ignore whitespace */ }
