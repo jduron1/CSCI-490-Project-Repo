@@ -1,10 +1,4 @@
-#ifndef SYMBOL_TABLE_H
-#define SYMBOL_TABLE_H
-
-#include <stdio.h>
-
 #define SIZE 211
-
 #define MAX_TOKEN_LEN 40
 
 #define BY_VALUE 1
@@ -13,68 +7,61 @@
 #define ARG_CHECK 1
 
 typedef union ValueTypeUnion {
-    int integer;
+    long long int integer;
     double real;
     char character;
     char* string;
+    char* boolean;
 } ValueType;
 
 typedef struct ArgumentStruct {
-    ValueType val;
     int arg_type;
     char arg_name[MAX_TOKEN_LEN];
-    int pass; 
+    ValueType val;
+    int pass;
 } Argument;
 
-typedef struct ReferencedStruct {
-    struct ReferencedStruct* next;
+typedef struct ReferencedStruct { 
     int line_no;
+    struct ReferencedStruct* next;
 } Referenced;
 
 typedef struct StorageNodeStruct {
-    struct StorageNodeStruct* next;
-    Referenced* lines;
-    Argument* args;
-    ValueType val;
-    ValueType* vals;
     char storage_name[MAX_TOKEN_LEN];
     int storage_size;
     int scope;
+    Referenced* lines;
+    ValueType val;
     int storage_type;
     int inferred_type;
+    ValueType* vals;
     int array_size;
+    Argument* args;
     int arg_count;
+    struct StorageNodeStruct* next;
 } StorageNode;
 
 typedef struct RevisitQueueStruct {
-    struct RevisitQueueStruct* next;
     char* storage_name;
     int revisit_type;
+    struct RevisitQueueStruct* next;
 } RevisitQueue;
 
-typedef struct SymbolTableStruct {
-    StorageNode** buckets;
-    int size;
-    int count;
-} SymbolTable;
-
-static SymbolTable* table;
+static StorageNode** table;
 static RevisitQueue* queue;
 
 void initSymbolTable();
 unsigned int hash(const char* key);
-void insert(const char* name, int len, int type, int line_no);
-StorageNode* lookup(const char* name);
-void setType(const char* name, int storage_type, int inferred_type);
-int getType(const char* name);
-Argument defArg(int arg_type, const char* arg_name, int pass); 
-int funcDeclaration(const char* name, int return_type, int arg_count, Argument* args); 
-int funcArgCheck(const char* name, int arg_count, Argument* args); 
+void insert(const char*, int, int, int);
+StorageNode* lookup(const char*);
+void setType(const char*, int, int);
+int getType(const char*);
+Argument defArg(int, const char*, int);
+int funcDeclaration(const char*, int, int, Argument*);
+int funcArgCheck(const char*, int, Argument*);
 void hideScope();
 void incrScope();
-void pushToQueue(const char* name, int type); 
-int revisit(const char* name);
-void printSymbolTable(FILE* of);
-void printRevisitQueue(FILE* of);
-
-#endif
+void pushToQueue(char*, int);
+int revisit(const char*);
+void printSymbolTable(FILE*);
+void printRevisitQueue(FILE*);

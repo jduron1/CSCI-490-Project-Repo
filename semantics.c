@@ -3,6 +3,8 @@
 #include <string.h>
 #include "semantics.h"
 
+extern int yylineno;
+
 int getResultType(int type_1, int type_2, int op) {
     switch (op) {
         case NONE:
@@ -66,6 +68,23 @@ int getResultType(int type_1, int type_2, int op) {
                         typeError(type_1, type_2, op);
                     }
 
+                    break;
+                default:
+                    typeError(type_1, type_2, op);
+                    break;
+            }
+
+            break;
+        case INCR_OP:
+            switch (type_1) {
+                case INT_TYPE:
+                    return INT_TYPE;
+                    break;
+                case REAL_TYPE:
+                    return REAL_TYPE;
+                    break;
+                case CHAR_TYPE:
+                    return CHAR_TYPE;
                     break;
                 default:
                     typeError(type_1, type_2, op);
@@ -162,7 +181,7 @@ int getResultType(int type_1, int type_2, int op) {
             }
 
             break;
-        case EQ_OP:
+        case EQU_OP:
             switch (type_1) {
                 case INT_TYPE:
                     if (type_2 == INT_TYPE || type_2 == CHAR_TYPE) {
@@ -195,13 +214,13 @@ int getResultType(int type_1, int type_2, int op) {
 
             break;
         default:
-            fprintf(stderr, "Invalid operator.\n");
+            fprintf(stderr, "Invalid operator at line %d.\n", yylineno);
             exit(1);
             break;
     }
 }
 
 void typeError(int type_1, int type_2, int op) {
-    fprintf(stderr, "Type conflict between %d and %d in operation %d.\n", type_1, type_2, op);
+    fprintf(stderr, "Type conflict between %d and %d in operation %d at line %d.\n", type_1, type_2, op, yylineno);
     exit(1);
 }
