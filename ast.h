@@ -1,26 +1,32 @@
 #ifndef AST_H
 #define AST_H
 
-#include "symbol_table.h"
-
 typedef enum NodeTypeEnum {
     BASIC_NODE,
+    DECLARATIONS,
     DECL_NODE,
     CONST_NODE,
+    STATEMENTS,
     IF_NODE,
     ELSEIF_NODE,
     FOR_NODE,
     WHILE_NODE,
     ASSIGN_NODE,
-    ASSIGN_OP_NODE,
+    ARITH_ASSIGN_NODE,
     SIMPLE_NODE,
+    INCR_NODE,
     FUNC_CALL,
+    CALL_ARGS,
     ARITH_NODE,
     BOOL_NODE,
     REL_NODE,
-    EQ_NODE,
+    EQU_NODE,
+    REF_NODE,
+    FUNC_DECLS,
     FUNC_DECL,
-    RETURN_NODE
+    RET_TYPE,
+    DECL_ARGS,
+    RETURN_NODE,
 } NodeType;
 
 typedef enum ArithOpEnum {
@@ -29,8 +35,19 @@ typedef enum ArithOpEnum {
     OP_MUL,
     OP_DIV,
     OP_MOD,
-    OP_EXP
+    OP_EXP,
+    OP_INC,
+    OP_DEC,
 } ArithOp;
+
+typedef enum ArithAssignEnum {
+    OP_ADD_ASSIGN,
+    OP_SUB_ASSIGN,
+    OP_MUL_ASSIGN,
+    OP_DIV_ASSIGN,
+    OP_MOD_ASSIGN,
+    OP_EXP_ASSIGN
+} ArithAssign;
 
 typedef enum BoolOpEnum {
     OP_OR,
@@ -46,135 +63,206 @@ typedef enum RelOpEnum {
 } RelOp;
 
 typedef enum EquOpEnum {
-    EQUAL,
-    NOT_EQUAL
+    OP_EQUAL,
+    OP_NOT_EQUAL
 } EquOp;
 
 typedef struct ASTNodeStruct {
-    NodeType type;
-    struct ASTNodeStruct* left;
-    struct ASTNodeStruct* right;
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct *left;
+    struct ASTNodeStruct *right;
 } ASTNode;
 
+typedef struct ASTDeclarations {
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct** declarations;
+    int declaration_count;
+} ASTDeclarations;
+
 typedef struct ASTDeclStruct {
-    NodeType type;
-    int decl_type;
+    enum NodeTypeEnum type;
+    int data_type;
     StorageNode** names;
-    int num_names;
+    int names_count;
 } ASTDecl;
 
-typedef struct ASTConstStruct {
-    NodeType type;
+typedef struct ASTConst{
+    enum NodeTypeEnum type;
     int const_type;
-    ValueType var;
+    ValueType val;
 } ASTConst;
 
+typedef struct ASTStatements {
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct** statements;
+    int statement_count;
+} ASTStatements;
+
 typedef struct ASTIfStruct {
-    NodeType type;
-    ASTNode* condition;
-    ASTNode* if_branch;
-    ASTNode** elseif_branch;
-    ASTNode* else_branch;
-    int num_elseif;
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct* condition;
+    struct ASTNodeStruct* if_branch;
+    struct ASTNodeStruct** elseif_branches;
+    int elseif_count;
+    struct ASTNodeStruct* else_branch;
 } ASTIf;
 
 typedef struct ASTElseIfStruct {
-    NodeType type;
-    ASTNode* condition;
-    ASTNode* elseif_branch;
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct* condition;
+    struct ASTNodeStruct* elseif_branch;
 } ASTElseIf;
 
 typedef struct ASTForStruct {
-    NodeType type;
-    ASTNode* initialize;
-    ASTNode* condition;
-    ASTNode* increment;
-    ASTNode* for_branch;
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct* initialize;
+    struct ASTNodeStruct* condition;
+    struct ASTNodeStruct* increment;
+    struct ASTNodeStruct* for_branch;
+    StorageNode* counter;
 } ASTFor;
 
 typedef struct ASTWhileStruct {
-    NodeType type;
-    ASTNode* condition;
-    ASTNode* while_branch;
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct* condition;
+    struct ASTNodeStruct* while_branch;
 } ASTWhile;
 
 typedef struct ASTAssignStruct {
-    NodeType type;
+    enum NodeTypeEnum type;
     StorageNode* entry;
-    ASTNode* assign_val;
+    int ref;
+    struct ASTNodeStruct* assign_val;
 } ASTAssign;
 
-typedef struct ASTOpAssignStruct {
-    NodeType type;
+typedef struct ASTArithAssignStruct {
+    enum NodeTypeEnum type;
     StorageNode* entry;
-    ArithOp op;
-    ASTNode* assign_val;
-} ASTOpAssign;
+    int ref;
+    struct ASTNodeStruct* assign_val;
+    int op;
+} ASTArithAssign;
 
 typedef struct ASTSimpleStruct {
-    NodeType type;
+    enum NodeTypeEnum type;
     int statement_type;
 } ASTSimple;
 
+typedef struct ASTIncrStruct {
+    enum NodeTypeEnum type;
+    StorageNode* entry;
+    int incr_type;
+    int fix;
+} ASTIncr;
+
 typedef struct ASTFuncCallStruct {
-    NodeType type;
+    enum NodeTypeEnum type;
     StorageNode* entry;
     ASTNode** args;
-    int num_args;
+    int arg_count;
 } ASTFuncCall;
 
+typedef struct ASTCallArgsStruct {
+    enum NodeTypeEnum type;
+    ASTNode** args;
+    int arg_count;
+} ASTCallArgs;
+
 typedef struct ASTArithStruct {
-    NodeType type;
-    ArithOp op;
-    ASTNode* left;
-    ASTNode* right;
+    enum NodeTypeEnum type;
+    enum ArithOpEnum op;
+    struct ASTNodeStruct* left;
+    struct ASTNodeStruct* right;
 } ASTArith;
 
 typedef struct ASTBoolStruct {
-    NodeType type;
-    BoolOp op;
-    ASTNode* left;
-    ASTNode* right;
+    enum NodeTypeEnum type;
+    enum BoolOpEnum op;
+    struct ASTNodeStruct* left;
+    struct ASTNodeStruct* right;
 } ASTBool;
 
 typedef struct ASTRelStruct {
-    NodeType type;
-    RelOp op;
-    ASTNode* left;
-    ASTNode* right;
+    enum NodeTypeEnum type;
+    enum RelOpEnum op;
+    struct ASTNodeStruct* left;
+    struct ASTNodeStruct* right;
 } ASTRel;
 
-typedef struct ASTEqStruct {
-    NodeType type;
-    EquOp op;
-    ASTNode* left;
-    ASTNode* right;
-} ASTEq;
+typedef struct ASTEquStruct {
+    enum NodeTypeEnum type;
+    enum EquOpEnum op;
+    struct ASTNodeStruct* left;
+    struct ASTNodeStruct* right;
+} ASTEqu;
+
+typedef struct ASTRefStruct {
+    enum NodeTypeEnum type;
+    StorageNode* entry;
+    int ref;
+} ASTRef;
+
+typedef struct ASTFuncDeclarationsStruct {
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct** func_declarations;
+    int func_declaration_count;
+} ASTFuncDeclarations;
 
 typedef struct ASTFuncDeclStruct {
-    NodeType type;
+    enum NodeTypeEnum type;
     int ret_type;
+    int pointer;
     StorageNode* entry;
+    struct ASTNodeStruct* declarations;
+    struct ASTNodeStruct* statements;
+    struct ASTNodeStruct* return_node;
 } ASTFuncDecl;
 
-typedef struct ASTReturnStruct {
-    NodeType type;
+typedef struct ASTReturnTypeStruct {
+    enum NodeTypeEnum type;
     int ret_type;
-    ASTNode* ret_val;
+    int pointer;
+} ASTReturnType;
+
+typedef struct ASTDeclArgsStruct{
+    enum NodeTypeEnum type;
+    Argument* args;
+    int arg_count;
+} ASTDeclArgs;
+
+typedef struct ASTReturnStruct {
+    enum NodeTypeEnum type;
+    int ret_type;
+    struct ASTNodeStruct* ret_val;
 } ASTReturn;
 
 ASTNode* newASTNode(NodeType, ASTNode*, ASTNode*);
-ASTNode* newASTDeclNode(int, StorageNode**, int table_size);
+ASTNode* newASTDeclarationsNode(ASTNode**, int, ASTNode*);
+ASTNode* newASTDeclNode(int, StorageNode**, int);
 ASTNode* newASTConstNode(int, ValueType);
-ASTNode* newASTIfNode(ASTNode*, ASTNode*, ASTNode*, ASTNode**, int);
+ASTNode* newStatementsNode(ASTNode**, int, ASTNode*);
+ASTNode* newASTIfNode(ASTNode*, ASTNode*, ASTNode**, int, ASTNode*);
 ASTNode* newASTElseIfNode(ASTNode*, ASTNode*);
 ASTNode* newASTForNode(ASTNode*, ASTNode*, ASTNode*, ASTNode*);
+void setLoopCounter(ASTNode*);
 ASTNode* newASTWhileNode(ASTNode*, ASTNode*);
-ASTNode* newASTAssignNode(StorageNode*, ASTNode*);
-ASTNode* newASTOpAssignNode(StorageNode*, ArithOp, ASTNode*);
+ASTNode* newASTAssignNode(StorageNode*, int, ASTNode*);
+ASTNode* newASTArithAssignNode(StorageNode*, int, ASTNode*, ArithAssign);
 ASTNode* newASTSimpleNode(int);
+ASTNode* newASTIncrNode(StorageNode*, int, int);
 ASTNode* newASTFuncCallNode(StorageNode*, ASTNode**, int);
-void printAST(ASTNode*);
+ASTNode* newASTCallArgsNode(ASTNode**, int, ASTNode*);
+ASTNode* newASTArithNode(enum ArithOpEnum, ASTNode*, ASTNode*);
+ASTNode* newASTBoolNode(enum BoolOpEnum, ASTNode*, ASTNode*);
+ASTNode* newASTRelNode(enum RelOpEnum, ASTNode*, ASTNode*);
+ASTNode* newASTEquNode(enum EquOpEnum, ASTNode*, ASTNode*);
+ASTNode* newASTRefNode(StorageNode*, int);
+ASTNode* newASTFuncDeclarationsNode(ASTNode**, int, ASTNode*);
+ASTNode* newASTFuncDeclNode(int, int, StorageNode*);
+ASTNode* newASTReturnTypeNode(int, int);
+ASTNode* newASTDeclArgsNode(Argument*, int, Argument);
+ASTNode* newASTReturnNode(int, ASTNode*);
+void printASTNode(ASTNode*);
 void traverseAST(ASTNode*);
 
 #endif
