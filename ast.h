@@ -1,3 +1,6 @@
+#ifndef AST_H
+#define AST_H
+
 typedef enum NodeTypeEnum {
     BASIC_NODE,
     DECLARATIONS,
@@ -261,3 +264,5 @@ ASTNode* newASTDeclArgsNode(Argument*, int, Argument);
 ASTNode* newASTReturnNode(int, ASTNode*);
 void printASTNode(ASTNode*);
 void traverseAST(ASTNode*);
+
+#endif
