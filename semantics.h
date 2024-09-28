@@ -1,3 +1,6 @@
+#ifndef SEMANTICS_H
+#define SEMANTICS_H
+
 #define UNDEF 0
 #define INT_TYPE 1
 #define REAL_TYPE 2
@@ -20,3 +23,5 @@
 
 int getResultType (int, int, int);
 void typeError(int, int, int);
+
+#endif
