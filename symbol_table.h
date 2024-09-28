@@ -1,3 +1,6 @@
+#ifndef SYMBOL_TABLE_H
+#define SYMBOL_TABLE_H
+
 #define SIZE 211
 #define MAX_TOKEN_LEN 40
 
@@ -65,3 +68,5 @@ void pushToQueue(char*, int);
 int revisit(const char*);
 void printSymbolTable(FILE*);
 void printRevisitQueue(FILE*);
+
+#endif
