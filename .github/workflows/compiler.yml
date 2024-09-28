@@ -20,4 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build Project
-        run: gcc lex.yy.c parser.tab.c -lfl
+        run: |
+          flex scanner.l
+          bison -d parser.y
+          gcc lex.yy.c parser.tab.c -lfl
