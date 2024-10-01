@@ -4,198 +4,183 @@
 #include "semantics.h"
 #include "symbol_table.h"
 
-int cur_scope = 0;
-int declared = 0;
+static int cur_scope = 0;
+static int declared = 0;
+static int function_declared = 0;
+extern int yylineno;
 
-void initTable() {
-    table = (Table*)malloc(sizeof(Table));
+void initSymbolTable() {
+    table = (StorageNode**)malloc(SIZE * sizeof(StorageNode*));
 
-    table -> size = SIZE;
-    table -> count = 0;
-    table -> buckets = (Node**)calloc(table -> size, sizeof(Node*));
-
-    for (int i = 0; i < table -> size; i++) {
-        table -> buckets[i] = NULL;
+    for(int i = 0; i < SIZE; i++) {
+        table[i] = NULL;
     }
 }
 
 unsigned int hash(const char* key) {
-    unsigned int hash_value = 0;
+    unsigned int hash_val = 0;
 
-    for (int i = 0; key[i] != '\0'; i++) {
-        hash_value += key[i];
+    while (*key != '\0') {
+        hash_val += *key++;
     }
 
-    hash_value += key[0] % 11 + (key[0] << 3) - key[0];
+    hash_val += key[0] % 11 + (key[0] << 3) - key[0];
 
-    return hash_value % table -> size;
+    return hash_val % SIZE;
 }
 
-void insert(const char* name, int length, int type, int line_no) {
-    if (table -> count == table -> size) {
-        resize();
-    }
+void insert(const char* name, int len, int type, int line_no) {
+    unsigned int hash_val = hash(name);
+    StorageNode* node = table[hash_val];
 
-    unsigned int hash_value = hash(name);
-    Node* node = table -> buckets[hash_value];
-
-    while (node != NULL && strcmp(node -> name, name) != 0) {
+    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
     }
 
     if (node == NULL) {
         if (declared) {
-            node = (Node*)malloc(sizeof(Node));
+            node = (StorageNode*)malloc(sizeof(StorageNode));
 
-            strncpy(node -> name, name, length);
-            node -> storage = type;
+            strncpy(node -> storage_name, name, len);
+            node -> storage_size = len;
+            node -> storage_type = type;
             node -> scope = cur_scope;
             node -> lines = (Referenced*)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
 
-            node -> next = table -> buckets[hash_value];
-            table -> buckets[hash_value] = node;
-            table -> count++;
+            node -> next = table[hash_val];
+            table[hash_val] = node; 
         } else {
-            node = (Node*)malloc(sizeof(Node));
+            node = (StorageNode*)malloc(sizeof(StorageNode));
 
-            strncpy(node -> name, name, length);
-            node -> storage = type;
+            strncpy(node -> storage_name, name, len);
+            node -> storage_size = len;
+            node -> storage_type = type;
             node -> scope = cur_scope;
             node -> lines = (Referenced*)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
 
-            node -> next = table -> buckets[hash_value];
-            table -> buckets[hash_value] = node;
-            table -> count++;
-            
-            push(node -> name, ARG_CHECK);
+            node -> next = table[hash_val];
+            table[hash_val] = node;
+
+            pushToQueue(node, node -> storage_name, ARG_CHECK);
         }
     } else {
         if (!declared) {
-            Referenced* last = node -> lines;
+            Referenced* lines = node -> lines;
 
-            while (last -> next != NULL) {
-                last = last -> next;
+            while (lines -> next != NULL) {
+                lines = lines -> next;
             }
 
-            last -> next = (Referenced*)malloc(sizeof(Referenced));
-            last -> next -> line_no = line_no;
-            last -> next -> next = NULL;
+            lines -> next = (Referenced*)malloc(sizeof(Referenced));
+            lines -> next -> line_no = line_no;
+            lines -> next -> next = NULL;
         } else {
             if (node -> scope == cur_scope) {
-                fprintf(stderr, "Redefinition of %s.\n", name);
+                fprintf(stderr, "Redefinition of %s at line %d.\n", name, yylineno);
                 exit(1);
-            } else {
-                node = (Node*)malloc(sizeof(Node));
+            } else if (function_declared) {
+                Referenced* lines = node -> lines;
 
-                strncpy(node -> name, name, length);
-                node -> storage = type;
+                while (lines -> next != NULL) {
+                    lines = lines -> next;
+                }
+
+                lines -> next = (Referenced*)malloc(sizeof(Referenced));
+                lines -> next -> line_no = line_no;
+                lines -> next -> next = NULL;
+            } else {
+                node = (StorageNode*)malloc(sizeof(StorageNode));
+
+                strncpy(node -> storage_name, name, len);
+                node -> storage_size = len;
+                node -> storage_type = type;
                 node -> scope = cur_scope;
                 node -> lines = (Referenced*)malloc(sizeof(Referenced));
                 node -> lines -> line_no = line_no;
                 node -> lines -> next = NULL;
 
-                node -> next = table -> buckets[hash_value];
-                table -> buckets[hash_value] = node;
-                table -> count++;
-            }
-        }
+                node -> next = table[hash_val];
+                table[hash_val] = node;
+            }	
+        }		
     }
 }
 
-void resize() {
-    int new_size = table -> size * 2;
-    Node** new_buckets = (Node**)calloc(new_size, sizeof(Node*));
+StorageNode* lookup(const char* name) {
+    unsigned int hash_val = hash(name);
+    StorageNode* node = table[hash_val];
 
-    for (int i = 0; i < table -> size; i++) {
-        Node* cur = table -> buckets[i];
-
-        while (cur != NULL) {
-            Node* next = cur -> next;
-            unsigned int new_idx = hash(cur -> name);
-            cur -> next = new_buckets[new_idx];
-            new_buckets[new_idx] = cur;
-            cur = next;
-        }
-    }
-
-    free(table -> buckets);
-    table -> buckets = new_buckets;
-    table -> size = new_size;
-}
-
-Node* lookup(const char* name) {
-    unsigned int hash_value = hash(name);
-    Node* node = table -> buckets[hash_value];
-
-    while (node != NULL && strcmp(node -> name, name) != 0) {
+    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
     }
 
     return node;
 }
 
-void setType(const char* name, int storage, int inferrence) {
-    Node* node = lookup(name);
+void setDataType(const char* name, int storage_type, int inferred_type) {
+    StorageNode* node = lookup(name);
 
-    node -> storage = storage;
+    node -> storage_type = storage_type;
 
-    if (inferrence != UNDEF) {
-        node -> inferred = inferrence;
+    if (inferred_type != UNDEF) {
+        node -> inferred_type = inferred_type;
     }
 }
 
-int getType(const char* name) {
-    Node* node = lookup(name);
+int getDataType(const char* name) {
+    StorageNode* node = lookup(name);
 
-    if (node -> storage == INT_TYPE || node -> storage == REAL_TYPE || node -> storage == CHAR_TYPE || node -> storage == BOOL_TYPE) {
-        return node -> storage;
+    if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
+        return node -> storage_type;
     } else {
-        return node -> inferred;
+        return node -> inferred_type;
     }
 }
 
-Argument defArg(int type, const char* name, int pass) {
+Argument defArg(int arg_type, const char* arg_name, int pass) {
     Argument arg;
 
-    arg.type = type;
-    strcpy(arg.name, name);
+    arg.arg_type = arg_type;
+    strcpy(arg.arg_name, arg_name);
     arg.pass = pass;
 
     return arg;
 }
 
-int funcDeclaration(const char* name, int type, int num_args, Argument* args) {
-    Node* node = lookup(name);
+int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *args) {
+    StorageNode* node = lookup(name);
 
-    if (node -> storage != UNDEF) {
-        node -> storage = FUNC_TYPE;
-        node -> inferred = type;
-        node -> num_args = num_args;
-        node -> args = args;
-    } else {
-        fprintf(stderr, "Redefinition of %s.\n", name);
-        exit(1);
+    if (node != NULL) {
+        if (node -> storage_type == UNDEF) {
+            node -> storage_type = FUNCTION_TYPE;
+            node -> inferred_type = ret_type;
+            node -> arg_count = arg_count;
+            node -> args = args;
+
+            return 0;
+        } else {
+            fprintf(stderr, "Redeclaration of function %s at line %d.\n", name, yylineno);
+            exit(1);
+        }
     }
-
-    return 0;
 }
 
-int funcArgCheck(const char* name, int num_args, Argument* args) {
-    Node* node = lookup(name);
+int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_count) {
+    StorageNode* node = lookup(name);
 
-    if (node -> num_args != num_args) {
-        fprintf(stderr, "Too few arguments to function %s.\n", name);
-        exit(1);
-    } else {
-        int type_1, type_2;
+    for (int i = 0; i < call_count; i++) {
+        if (node -> arg_count != arg_count[i]) {
+            fprintf(stderr, "Function %s called with incorrect number of arguments at line %d.\n", name, yylineno);
+            exit(1);
+        }
 
-        for (int i = 0; i < num_args; i++) {
-            type_1 = node -> args[i].type;
-            type_2 = args[i].type;
+        for (int j = 0; j < arg_count[i]; j++) {
+            int type_1 = node -> args[j].arg_type;
+            int type_2 = arg_types[i][j];
 
             getResultType(type_1, type_2, NONE);
         }
@@ -205,18 +190,17 @@ int funcArgCheck(const char* name, int num_args, Argument* args) {
 }
 
 void hideScope() {
-    Node* node;
+    StorageNode* node;
 
-    for (int i = 0; i < table -> size; i++) {
-        if (table -> buckets[i] != NULL) {
-            node = table -> buckets[i];
+    for (int i = 0; i < SIZE; i++) {
+        if (table[i] != NULL) {
+            node = table[i];
 
             while (node != NULL && node -> scope == cur_scope) {
                 node = node -> next;
             }
 
-            table -> buckets[i] = node;
-            table -> count--;
+            table[i] = node;
         }
     }
 
@@ -227,193 +211,276 @@ void incrScope() {
     cur_scope++;
 }
 
-void push(char* name, int type) {
-    Queue* temp;
+void pushToQueue(StorageNode* entry, char* name, int type) {
+    RevisitQueue* q;
 
-    if (queue == NULL) {
-        temp = (Queue*)malloc(sizeof(Queue));
+    if(queue == NULL) {
+        q = (RevisitQueue*)malloc(sizeof(RevisitQueue));
 
-        temp -> name = name;
-        temp -> type = type;
-        temp -> next = NULL;
+        q -> entry = entry;
+        q -> storage_name = name;
+        q -> revisit_type = type;
+        q -> next = NULL;
 
-        queue = temp;
-    } else {
-        temp = queue;
-
-        while (temp -> next != NULL) {
-            temp = temp -> next;
+        if (type == ARG_CHECK) {
+            q -> call_count = 0;
+        } else if (type == ASSIGN_CHECK) {
+            q -> assign_count = 0;
         }
 
-        temp -> next = (Queue*)malloc(sizeof(Queue));
+        queue = q;
+    } else {
+        q = queue;
 
-        temp -> next -> name = name;
-        temp -> next -> type = type;
-        temp -> next -> next = NULL;
+        while (q -> next != NULL) {
+            q = q -> next;
+        }
+
+        q -> next = (RevisitQueue*)malloc(sizeof(RevisitQueue));
+
+        q -> next -> entry = entry;
+        q -> next -> storage_name = name;
+        q -> next -> revisit_type = type;
+        q -> next -> next = NULL;
+
+        if (type == ARG_CHECK) {
+            q -> next -> call_count = 0;
+        } else if (type == ASSIGN_CHECK) {
+            q -> next -> assign_count = 0;
+        }
+    }		
+}
+
+RevisitQueue* searchQueue(const char* name) {
+    RevisitQueue* q = queue;
+
+    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
+        q = q -> next;
     }
+
+    return q;
+}
+
+RevisitQueue* searchPrevQueue(const char* name) {
+    if (queue == NULL) {
+        return NULL;
+    }
+
+    if (strcmp(queue -> storage_name, name) == 0) {
+        return NULL;
+    }
+
+    RevisitQueue* q = queue;
+
+    while ((q != NULL) && (strcmp(q -> next -> storage_name, name) != 0)) {
+        q = q -> next;
+    }
+
+    return q;
 }
 
 int revisit(const char* name) {
-    Queue* cur;
+    RevisitQueue* q = searchQueue(name);
 
-    if (strcmp(queue -> name, name) == 0) {
-        switch (queue -> type) {
-            case ARG_CHECK:
-                break;
-            default:
-                break;
+    if (q == NULL) {
+        return -1;
+    }
+
+    switch (q -> revisit_type) {
+        case ARG_CHECK: {
+            if (!funcArgCheck(name, q -> call_count, q -> arg_types, q -> arg_count)) {
+                printf("Function %s called with correct number of arguments.\n", name);
+            }
+
+            RevisitQueue* prev = searchPrevQueue(name);
+
+            if (prev == NULL) {
+                queue = queue -> next;
+            } else {
+                prev -> next = prev -> next -> next;
+            }
+
+            break;
         }
 
-        cur = queue;
-        queue = queue -> next;
-        free(cur);
+        case ASSIGN_CHECK: {
+            int type_1 = getDataType(q -> entry -> storage_name);
 
-        return 0;
-    } else {
-        cur = queue;
+            for (int i = 0; i < q -> assign_count; i++) {
+                int type_2 = getExpressionType(q -> nodes[i]);
 
-        while (strcmp(cur -> next -> name, name) != 0) {
-            cur = cur -> next;
+                getResultType(type_1, type_2, NONE);
+            }
+
+            RevisitQueue* prev = searchPrevQueue(name);
+
+            if (prev == NULL) {
+                queue = queue -> next;
+            } else {
+                prev -> next = prev -> next -> next;
+            }
+
+            break;
         }
 
-        if (cur == NULL) {
-            return 1;
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+void printSymbolTable(FILE* of) {
+    fprintf(of, "------------ -------------- ------ ------------\n");
+    fprintf(of, "Name         Type           Scope  Line Numbers\n");
+    fprintf(of, "------------ -------------- ------ ------------\n");
+
+    for (int i = 0; i < SIZE; i++) {
+        if (table[i] != NULL) { 
+            StorageNode* node = table[i];
+            
+            while (node != NULL) {
+                Referenced* last = node -> lines;
+                fprintf(of, "%-13s ", node -> storage_name);
+
+                switch (node -> storage_type) {
+                    case INT_TYPE:
+                        fprintf(of, "%-15s", "int");
+                        break;
+                    case REAL_TYPE:
+                        fprintf(of, "%-15s", "real");
+                        break;
+                    case CHAR_TYPE:
+                        fprintf(of, "%-15s", "char");
+                        break;
+                    case STRING_TYPE:
+                        fprintf(of, "%-15s", "string");
+                        break;
+                    case BOOL_TYPE:
+                        fprintf(of, "%-15s", "bool");
+                        break;
+                    case VOID_TYPE:
+                        fprintf(of, "%-15s", "void");
+                        break;
+                    case ARRAY_TYPE:
+                        fprintf(of, "array of ");
+
+                        switch (node -> inferred_type) {
+                            case INT_TYPE:
+                                fprintf(of, "%-6s", "int");
+                                break;
+                            case REAL_TYPE:
+                                fprintf(of, "%-6s", "real");
+                                break;
+                            case CHAR_TYPE:
+                                fprintf(of, "%-6s", "char");
+                                break;
+                            case STRING_TYPE:
+                                fprintf(of, "%-6s", "string");
+                                break;
+                            case BOOL_TYPE:
+                                fprintf(of, "%-6s", "bool");
+                                break;
+                            case VOID_TYPE:
+                                fprintf(of, "%-6s", "void");
+                                break;
+                            default:
+                                fprintf(of, "%-13s", "undef");
+                                break;
+                        }
+                        
+                        break;
+                    case POINTER_TYPE:
+                        fprintf(of, "pointer to ");
+
+                        switch (node -> inferred_type) {
+                            case INT_TYPE:
+                                fprintf(of, "%-4s", "int");
+                                break;
+                            case REAL_TYPE:
+                                fprintf(of, "%-4s", "real");
+                                break;
+                            case CHAR_TYPE:
+                                fprintf(of, "%-4s", "char");
+                                break;
+                            case STRING_TYPE:
+                                fprintf(of, "%-4s", "string");
+                                break;
+                            case VOID_TYPE:
+                                fprintf(of, "%-4s", "void");
+                                break;
+                            default:
+                                fprintf(of, "%-4s", "undef");
+                                break;
+                        }
+
+                        break;
+                    case FUNCTION_TYPE:
+                        fprintf(of, "%-6s", "func ret ");
+
+                        switch (node -> inferred_type) {
+                            case INT_TYPE:
+                                fprintf(of, "%-6s", "int");
+                                break;
+                            case REAL_TYPE:
+                                fprintf(of, "%-6s", "real");
+                                break;
+                            case CHAR_TYPE:
+                                fprintf(of, "%-6s", "char");
+                                break;
+                            case STRING_TYPE:
+                                fprintf(of, "%-6s", "string");
+                                break;
+                            case BOOL_TYPE:
+                                fprintf(of, "%-6s", "bool");
+                                break;
+                            case VOID_TYPE:
+                                fprintf(of, "%-6s", "void");
+                                break;
+                            default:
+                                fprintf(of, "%-4s", "undef");
+                                break;
+                        }
+
+                        break;
+                    default:
+                        fprintf(of, "%-15s", "undef");
+                        break;
+                }
+
+                fprintf(of, "  %d  ", node -> scope);
+                
+                while (last != NULL) {
+                    fprintf(of, "%4d ", last -> line_no);
+                    last = last -> next;
+                }
+                
+                fprintf(of,"\n");
+                node = node -> next;
+            }
         }
-
-        switch (cur -> next -> type) {
-            case ARG_CHECK:
-                break;
-            default:
-                break;
-        }
-
-        Queue* temp = cur -> next;
-        cur -> next = cur -> next -> next;
-        free(temp);
-
-        return 0;
     }
 }
 
-void printTable(FILE * of){  
-  fprintf(of, "------------ ------ ------ ------------\n");
-  fprintf(of, "Name         Type   Scope  Line Numbers\n");
-  fprintf(of, "------------ ------ ------ ------------\n");
-
-  for (int i = 0; i < table -> size; i++) {
-    if (table -> buckets[i] != NULL) { 
-        Node* node = table -> buckets[i];
-        
-        while (node != NULL) {
-            Referenced *ref = node -> lines;
-            fprintf(of, "%-12s ", node -> name);
-
-            switch (node -> storage) {
-                case INT_TYPE:
-                    fprintf(of, "%-7s", "int");
-                    break;
-                case REAL_TYPE:
-                    fprintf(of, "%-7s", "real");
-                    break;
-                case CHAR_TYPE:
-                    fprintf(of, "%-7s", "string");
-                    break;
-                case BOOL_TYPE:
-                    fprintf(of, "%-7s", "bool");
-                    break;
-                case ARR_TYPE:
-                    fprintf(of, "array of ");
-
-                    switch (node -> inferred) {
-                        case INT_TYPE:
-                            fprintf(of, "%-7s", "int");
-                            break;
-                        case REAL_TYPE:
-                            fprintf(of, "%-7s", "real");
-                            break;
-                        case CHAR_TYPE:
-                            fprintf(of, "%-7s", "string");
-                            break;
-                        case BOOL_TYPE:
-                            fprintf(of, "%-7s", "bool");
-                            break;
-                        default:
-                            fprintf(of, "%-7s", "undef");
-                            break;
-                    }
-                    
-                    break;
-                case FUNC_TYPE:
-                    fprintf(of, "%-7s", "function returns ");
-
-                    switch (node -> inferred) {
-                        case INT_TYPE:
-                            fprintf(of, "%-7s", "int");
-                            break;
-                        case REAL_TYPE:
-                            fprintf(of, "%-7s", "real");
-                            break;
-                        case CHAR_TYPE:
-                            fprintf(of, "%-7s", "string");
-                            break;
-                        case BOOL_TYPE:
-                            fprintf(of, "%-7s", "bool");
-                            break;
-                        default:
-                            fprintf(of, "%-7s", "undef");
-                            break;
-                    }
-
-                    break;
-                default:
-                    fprintf(of, "%-7s", "undef");
-                    break;
-            }
-
-            fprintf(of, "  %d  ", node -> scope);
-            
-            while (ref != NULL) {
-                fprintf(of, "%4d ", ref -> line_no);
-                ref = ref -> next;
-            }
-            
-            fprintf(of,"\n");
-            node = node -> next;
-        }
-    }
-  }
-}
-
-void printQueue(FILE* of) {
-    Queue* temp = queue;
-
+void printRevisitQueue(FILE* of) {
+    RevisitQueue* q = queue;
+    
     fprintf(of, "------------ -------------\n");
     fprintf(of, "Identifier   Revisit Type\n");
     fprintf(of, "------------ -------------\n");
 
-    while (temp != NULL) {
-        fprintf(of, "%-13s", temp -> name);
+    while (q != NULL) {
+        fprintf(of, "%-13s", q -> storage_name);
 
-        if (temp -> type == ARG_CHECK) {
-            fprintf(of, "%s", "Parameter Check");
+        if (q -> revisit_type == ARG_CHECK) {
+            fprintf(of, "%s", "Argument check ");
+            fprintf(of, "for %d function calls.", q -> call_count);
+        } else if (q -> revisit_type == ASSIGN_CHECK) {
+            fprintf(of, "%s", "Assignment check ");
+            fprintf(of, "for %d assignments.", q -> assign_count);
         }
 
         fprintf(of, "\n");
-        temp = temp -> next;
+        q = q -> next;	
     }
-}
-
-void freeTable() {
-    for (int i = 0; i < table -> size; i++) {
-        Node* cur = table -> buckets[i];
-
-        while (cur != NULL) {
-            Node* next = cur -> next;
-            free(cur);
-            cur = next;
-        }
-    }
-
-    free(table -> buckets);
-    free(table);
 }

@@ -1,10 +1,11 @@
 %{
     #include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
+    #include <stdlib.h>
+    #include <string.h>
     #include "symbol_table.h"
     #include "semantics.h"
-	#include "parser.tab.h"
+    #include "ast.h"
+    #include "parser.tab.h"
 
     extern int yylineno;
     extern FILE *yyin;
@@ -12,8 +13,7 @@
 %}
 
 %option noyywrap
-
-/* Keyword definitions */
+%x MULTI_LINE
 
 CARACTER            (?i:car)
 BOOLEANO            (?i:bool)
@@ -29,32 +29,31 @@ SINO                (?i:sino)
 POR                 (?i:por)
 EN                  (?i:en)
 MIENTRAS            (?i:mientras)
-ESPERA              (?i:espera)
+PARA                (?i:para)
 CONTINUA            (?i:continua)
 REGRESA             (?i:regresa)
 
-/* Identifier definition */
 IDENTIFIER          [a-zA-Z][a-zA-Z0-9_]*
 
-/* Number constant definition */
 INTEGER             [0-9]+
 DECIMAL             [0-9]+(\.[0-9]+)
 
-/* String literal definitions */
-CHARACTER           \'([^\n]|\\\n)\'
-STRING              \"([^\n]|\\\n)*\"
+CHARACTER           \'[ -~]\'|\'\\[nftrbv]\'
+STRING              \"[ -~]*\"
 
-/* Comment definitions */
-SINGLE_LINE         \#[^*].*
-MULTI_LINE          \#\*([^*]|\*+[^*#])*\*+\#
+SINGLE_LINE         \#\#.*
 
-/* Whitespace definition */
 WHITESPACE          [\ \f\r\t\v]+
 
 %%
 
-{SINGLE_LINE}       { /* Ignore comments */ }
-{MULTI_LINE}        { /* Ignore comments */ }
+{SINGLE_LINE}       { }
+
+"#*"                { BEGIN(MULTI_LINE); }
+<MULTI_LINE>"*#"    { BEGIN(INITIAL); }
+<MULTI_LINE>[^*\n]+ { }
+<MULTI_LINE>"*"     { }
+<MULTI_LINE>\n      { yylineno++; }
 
 {CARACTER}          { return CARACTER; }
 {BOOLEANO}          { return BOOLEANO; }
@@ -63,34 +62,38 @@ WHITESPACE          [\ \f\r\t\v]+
 {CADENA}            { return CADENA; }
 {VACIO}             { return VACIO; }
 {FUNCION}           { return FUNCION; }
-{CIERTO}            { return CIERTO; }
-{FALSO}             { return FALSO; }
+{CIERTO}            { yylval.val.boolean = "true"; return CIERTO; }
+{FALSO}             { yylval.val.boolean = "false"; return FALSO; }
 {SI}                { return SI; }
 {SINO}              { return SINO; }
 {POR}               { return POR; }
 {EN}                { return EN; }
 {MIENTRAS}          { return MIENTRAS; }
-{ESPERA}            { return ESPERA; }
+{PARA}              { return PARA; }
 {CONTINUA}          { return CONTINUA; }
 {REGRESA}           { return REGRESA; }
 
-"+"                 { return ADD; }
-"-"                 { return SUB; }
-"*"                 { return MUL; }
-"/"                 { return DIV; }
-"%"                 { return MOD; }
-"^"                 { return EXP; }
-"+="                { return ADD_ASSIGN; }
-"-="                { return SUB_ASSIGN; }
-"*="                { return MUL_ASSIGN; }
-"/="                { return DIV_ASSIGN; }
-"%="                { return MOD_ASSIGN; }
-"^="                { return EXP_ASSIGN; }
-"||"                { return OR; }
-"&&"                { return AND; }
-"!"                 { return NOT; }
-"=="|"!="           { return EQ; }
-"<"|"<="|">"|">="   { return REL; }
+"+"                 { yylval.val.integer = OP_ADD; return ADD; }
+"-"                 { yylval.val.integer = OP_SUB; return SUB; }
+"*"                 { yylval.val.integer = OP_MUL; return MUL; }
+"/"                 { yylval.val.integer = OP_DIV; return DIV; }
+"%"                 { yylval.val.integer = OP_MOD; return MOD; }
+"^"                 { yylval.val.integer = OP_EXP; return EXP; }
+"+="                { yylval.val.integer = OP_ADD_ASSIGN; return ADD_ASSIGN; }
+"-="                { yylval.val.integer = OP_SUB_ASSIGN; return SUB_ASSIGN; }
+"*="                { yylval.val.integer = OP_MUL_ASSIGN; return MUL_ASSIGN; }
+"/="                { yylval.val.integer = OP_DIV_ASSIGN; return DIV_ASSIGN; }
+"%="                { yylval.val.integer = OP_MOD_ASSIGN; return MOD_ASSIGN; }
+"^="                { yylval.val.integer = OP_EXP_ASSIGN; return EXP_ASSIGN; }
+"||"                { yylval.val.integer = OP_OR; return OR; }
+"&&"                { yylval.val.integer = OP_AND; return AND; }
+"!"                 { yylval.val.integer = OP_NOT; return NOT; }
+"=="                { yylval.val.integer = OP_EQUAL; return EQ; }
+"!="                { yylval.val.integer = OP_NOT_EQUAL; return NE; }
+"<"                 { yylval.val.integer = OP_LESS; return LESS; }
+"<="                { yylval.val.integer = OP_LE; return LE; }
+">"                 { yylval.val.integer = OP_GREAT; return GREAT; }
+">="                { yylval.val.integer = OP_GE; return GE; }
 "->"                { return ARROW; }
 "..."               { return ELLIPSIS; }
 
@@ -111,13 +114,13 @@ WHITESPACE          [\ \f\r\t\v]+
                         return IDENTIFIER;
                     }
 
-{INTEGER}           { yylval.integer = atoi(yytext); return INTEGER; }
-{DECIMAL}           { yylval.real = atof(yytext); return DECIMAL; }
-{CHARACTER}         { yylval.character = yytext[0]; return CHARACTER; }
-{STRING}            { yylval.string = (char*)malloc(yyleng * sizeof(char)); strcpy(yylval.string, yytext); return STRING; }
+{INTEGER}           { yylval.val.integer = atoi(yytext); return INTEGER; }
+{DECIMAL}           { yylval.val.real = atof(yytext); return DECIMAL; }
+{CHARACTER}         { yylval.val.character = yytext[1]; return CHARACTER; }
+{STRING}            { yylval.val.string = strdup(yytext); return STRING; }
 
 \n                  { yylineno++; }
-{WHITESPACE}        { /* Ignore whitespace */ }
+{WHITESPACE}        { }
 
 .                   { fprintf(stderr, "Unrecognized character at line %d: %s\n", yylineno, yytext); exit(1); }
 
