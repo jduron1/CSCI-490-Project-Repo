@@ -29,7 +29,7 @@ SINO                (?i:sino)
 POR                 (?i:por)
 EN                  (?i:en)
 MIENTRAS            (?i:mientras)
-ESPERA              (?i:espera)
+PARA                (?i:para)
 CONTINUA            (?i:continua)
 REGRESA             (?i:regresa)
 
@@ -69,7 +69,7 @@ WHITESPACE          [\ \f\r\t\v]+
 {POR}               { return POR; }
 {EN}                { return EN; }
 {MIENTRAS}          { return MIENTRAS; }
-{ESPERA}            { return ESPERA; }
+{PARA}              { return PARA; }
 {CONTINUA}          { return CONTINUA; }
 {REGRESA}           { return REGRESA; }
 
@@ -116,7 +116,7 @@ WHITESPACE          [\ \f\r\t\v]+
 
 {INTEGER}           { yylval.val.integer = atoi(yytext); return INTEGER; }
 {DECIMAL}           { yylval.val.real = atof(yytext); return DECIMAL; }
-{CHARACTER}         { yylval.val.character = yytext[0]; return CHARACTER; }
+{CHARACTER}         { yylval.val.character = yytext[1]; return CHARACTER; }
 {STRING}            { yylval.val.string = strdup(yytext); return STRING; }
 
 \n                  { yylineno++; }

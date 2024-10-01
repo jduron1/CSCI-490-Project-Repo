@@ -26,7 +26,7 @@ typedef enum NodeTypeEnum {
     FUNC_DECL,
     RET_TYPE,
     DECL_ARGS,
-    RETURN_NODE,
+    RETURN_NODE
 } NodeType;
 
 typedef enum ArithOpEnum {
@@ -37,7 +37,7 @@ typedef enum ArithOpEnum {
     OP_MOD,
     OP_EXP,
     OP_INC,
-    OP_DEC,
+    OP_DEC
 } ArithOp;
 
 typedef enum ArithAssignEnum {
@@ -86,7 +86,7 @@ typedef struct ASTDeclStruct {
     int names_count;
 } ASTDecl;
 
-typedef struct ASTConst{
+typedef struct ASTConst {
     enum NodeTypeEnum type;
     int const_type;
     ValueType val;
@@ -140,7 +140,8 @@ typedef struct ASTArithAssignStruct {
     StorageNode* entry;
     int ref;
     struct ASTNodeStruct* assign_val;
-    int op;
+    enum ArithAssignEnum op;
+    int data_type;
 } ASTArithAssign;
 
 typedef struct ASTSimpleStruct {
@@ -158,13 +159,13 @@ typedef struct ASTIncrStruct {
 typedef struct ASTFuncCallStruct {
     enum NodeTypeEnum type;
     StorageNode* entry;
-    ASTNode** args;
+    struct ASTNodeStruct** args;
     int arg_count;
 } ASTFuncCall;
 
 typedef struct ASTCallArgsStruct {
     enum NodeTypeEnum type;
-    ASTNode** args;
+    struct ASTNodeStruct** args;
     int arg_count;
 } ASTCallArgs;
 
@@ -173,6 +174,7 @@ typedef struct ASTArithStruct {
     enum ArithOpEnum op;
     struct ASTNodeStruct* left;
     struct ASTNodeStruct* right;
+    int data_type;
 } ASTArith;
 
 typedef struct ASTBoolStruct {
@@ -180,6 +182,7 @@ typedef struct ASTBoolStruct {
     enum BoolOpEnum op;
     struct ASTNodeStruct* left;
     struct ASTNodeStruct* right;
+    int data_type;
 } ASTBool;
 
 typedef struct ASTRelStruct {
@@ -187,6 +190,7 @@ typedef struct ASTRelStruct {
     enum RelOpEnum op;
     struct ASTNodeStruct* left;
     struct ASTNodeStruct* right;
+    int data_type;
 } ASTRel;
 
 typedef struct ASTEquStruct {
@@ -194,6 +198,7 @@ typedef struct ASTEquStruct {
     enum EquOpEnum op;
     struct ASTNodeStruct* left;
     struct ASTNodeStruct* right;
+    int data_type;
 } ASTEqu;
 
 typedef struct ASTRefStruct {
@@ -247,7 +252,7 @@ ASTNode* newASTForNode(ASTNode*, ASTNode*, ASTNode*, ASTNode*);
 void setLoopCounter(ASTNode*);
 ASTNode* newASTWhileNode(ASTNode*, ASTNode*);
 ASTNode* newASTAssignNode(StorageNode*, int, ASTNode*);
-ASTNode* newASTArithAssignNode(StorageNode*, int, ASTNode*, ArithAssign);
+ASTNode* newASTArithAssignNode(StorageNode*, int, ASTNode*, ASTNode*, ASTNode*, ArithAssign);
 ASTNode* newASTSimpleNode(int);
 ASTNode* newASTIncrNode(StorageNode*, int, int);
 ASTNode* newASTFuncCallNode(StorageNode*, ASTNode**, int);
@@ -262,6 +267,7 @@ ASTNode* newASTFuncDeclNode(int, int, StorageNode*);
 ASTNode* newASTReturnTypeNode(int, int);
 ASTNode* newASTDeclArgsNode(Argument*, int, Argument);
 ASTNode* newASTReturnNode(int, ASTNode*);
+int getExpressionType(ASTNode*);
 void printASTNode(ASTNode*);
 void traverseAST(ASTNode*);
 

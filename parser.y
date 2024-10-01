@@ -43,7 +43,7 @@
 
 %token <val> CARACTER BOOLEANO ENTERO REAL CADENA VACIO
 %token <val> FUNCION CIERTO FALSO SI SINO
-%token <val> POR MIENTRAS ESPERA CONTINUA REGRESA
+%token <val> POR MIENTRAS PARA CONTINUA REGRESA
 %token <val> ADD SUB MUL DIV MOD EXP ADD_ASSIGN SUB_ASSIGN
 %token <val> MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN EXP_ASSIGN
 %token <val> OR AND NOT EQ NE LESS LE GREAT GE ARROW LPAREN RPAREN
@@ -92,7 +92,8 @@
 
 %%
 
-program: declarations { traverseAST($1); } statements { traverseAST($3); } REGRESA SEMICOLON optional_functions { traverseAST($7); }
+program: optional_functions { traverseAST($1); }
+       | declarations { traverseAST($1); } statements { traverseAST($3); } REGRESA SEMICOLON optional_functions { traverseAST($7); }
        ;
 
 declarations: declarations declaration
@@ -116,13 +117,13 @@ declaration: type { declared = 1; } names { declared = 0; } SEMICOLON
                     for (int i = 0; i < temp -> names_count; i++) {
                         switch (temp -> names[i] -> storage_type) {
                             case UNDEF:
-                                setType(temp -> names[i] -> storage_name, temp -> data_type, UNDEF);
+                                setDataType(temp -> names[i] -> storage_name, temp -> data_type, UNDEF);
                                 break;
                             case POINTER_TYPE:
-                                setType(temp -> names[i] -> storage_name, POINTER_TYPE, temp -> data_type);
+                                setDataType(temp -> names[i] -> storage_name, POINTER_TYPE, temp -> data_type);
                                 break;
                             case ARRAY_TYPE:
-                                setType(temp -> names[i] -> storage_name, ARRAY_TYPE, temp -> data_type);
+                                setDataType(temp -> names[i] -> storage_name, ARRAY_TYPE, temp -> data_type);
                                 break;
                             default:
                                 break;
@@ -156,31 +157,27 @@ variable: IDENTIFIER
             }
         | IDENTIFIER array
             {
-                $1 -> storage_type = ARRAY_TYPE;
-                $1 -> array_size = $2;
-                $$ = $1;
+                if (declared) {
+                    $1 -> storage_type = ARRAY_TYPE;
+                    $1 -> array_size = $2;
+                    $$ = $1;
+                }
             }
         ;
 
-pointer: pointer MUL
-    | MUL
-    ;
+pointer: MUL
+       ;
 
-array: array LBRACKET expression RBRACKET
+array: LBRACKET INTEGER RBRACKET
         {
-            if (declared) {
-            fprintf(stderr, "Error at line %d: array size must be an integer.\n", yylineno);
-            }
+            $$ = $2.integer;
         }
      | LBRACKET expression RBRACKET
         {
             if (declared) {
-            fprintf(stderr, "Error at line %d: array size must be an integer.\n", yylineno);
+                fprintf(stderr, "Error at line %d: array size must be an integer.\n", yylineno);
+                exit(1);
             }
-        }
-     | LBRACKET INTEGER RBRACKET
-        {
-            $$ = $2.integer;
         }
      ;
 
@@ -255,7 +252,7 @@ statement: if
             {
                 $$ = newASTSimpleNode(0);
             }
-         | ESPERA SEMICOLON
+         | PARA SEMICOLON
             {
                 $$ = newASTSimpleNode(1);
             }
@@ -315,6 +312,62 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
             ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
 
             $$ = newASTForNode(temp3, temp2, temp, $7);
+            setLoopCounter($$);
+        }
+    | POR IDENTIFIER EN INTEGER ELLIPSIS IDENTIFIER tail
+        {
+            ASTNode* temp;
+            ASTNode* temp2;
+
+            if ($4.integer < $6 -> val.integer) {
+                temp = newASTIncrNode($2, 0, 0);
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTRefNode($6, 0));
+            } else {
+                temp = newASTIncrNode($2, 1, 0);
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTRefNode($6, 0));
+            }
+
+            ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
+
+            $$ = newASTForNode(temp3, temp2, temp, $7);
+            setLoopCounter($$);
+        }
+    | POR type IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
+        {
+            ASTNode* temp;
+            ASTNode* temp2;
+
+            if ($5.integer < $7.integer) {
+                temp = newASTIncrNode($3, 0, 0);
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($3, 0), newASTConstNode(INT_TYPE, $7));
+            } else {
+                temp = newASTIncrNode($3, 1, 0);
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($3, 0), newASTConstNode(INT_TYPE, $7));
+            }
+
+            setDataType($3 -> storage_name, $2, UNDEF);
+            ASTNode* temp3 = newASTAssignNode($3, 0, newASTConstNode(INT_TYPE, $5));
+
+            $$ = newASTForNode(temp3, temp2, temp, $8);
+            setLoopCounter($$);
+        }
+    | POR type IDENTIFIER EN INTEGER ELLIPSIS IDENTIFIER tail
+        {
+            ASTNode* temp;
+            ASTNode* temp2;
+
+            if ($5.integer < $7 -> val.integer) {
+                temp = newASTIncrNode($3, 0, 0);
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($3, 0), newASTRefNode($7, 0));
+            } else {
+                temp = newASTIncrNode($3, 1, 0);
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($3, 0), newASTRefNode($7, 0));
+            }
+
+            setDataType($3 -> storage_name, $2, UNDEF);
+            ASTNode* temp3 = newASTAssignNode($3, 0, newASTConstNode(INT_TYPE, $5));
+
+            $$ = newASTForNode(temp3, temp2, temp, $8);
             setLoopCounter($$);
         }
    ;
@@ -455,36 +508,211 @@ assignment: var_ref ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
                 $$ = newASTAssignNode(temp -> entry, temp -> ref, $3);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, NONE);
+                }
             }
           | var_ref ADD_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_ADD_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_ADD_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           | var_ref SUB_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_SUB_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_SUB_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           | var_ref MUL_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_MUL_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_MUL_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           | var_ref DIV_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_DIV_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_DIV_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           | var_ref MOD_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_MOD_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_MOD_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           | var_ref EXP_ASSIGN expression
             {
                 ASTRef* temp = (ASTRef*)$1;
-                $$ = newASTArithAssignNode(temp -> entry, OP_EXP_ASSIGN, $3, temp -> ref);
+                $$ = newASTArithAssignNode(temp -> entry, temp -> ref, $3, $1, $3, OP_EXP_ASSIGN);
+                int type_1 = getDataType(temp -> entry -> storage_name);
+                int type_2 = getExpressionType($3);
+
+                if (contains_revisit) {
+                    RevisitQueue* q = searchQueue(temp -> entry -> storage_name);
+
+                    if (q == NULL) {
+                        pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
+                        q = searchQueue(temp -> entry -> storage_name);
+                    }
+
+                    if (q -> assign_count == 0) {
+                        q -> nodes = (void**)malloc(sizeof(void*));
+                    } else {
+                        q -> nodes = (void**)realloc(q -> nodes, (q -> assign_count + 1) * sizeof(void*));
+                    }
+
+                    q -> nodes[q -> assign_count] = (void*)$3;
+                    q -> assign_count++;
+                    contains_revisit = 0;
+
+                    printf("Assignment revisit for %s at line %d.\n", temp -> entry -> storage_name, yylineno);
+                } else {
+                    getResultType(type_1, type_2, ARITH_ASSIGN_OP);
+                }
             }
           ;
 
@@ -502,6 +730,41 @@ call: IDENTIFIER LPAREN call_arguments RPAREN
         {
             ASTCallArgs* temp = (ASTCallArgs*)$3;
             $$ = newASTFuncCallNode($1, temp -> args, temp -> arg_count);
+
+            RevisitQueue* q = searchQueue($1 -> storage_name);
+
+            if (q != NULL) {
+                if (q -> call_count == 0) {
+                    q -> arg_types = (int**)malloc(sizeof(int*));
+                    q -> arg_count = (int*)malloc(sizeof(int));
+                } else {
+                    q -> arg_types = (int**)realloc(q -> arg_types, (q -> call_count + 1) * sizeof(int*));
+                    q -> arg_count = (int*)realloc(q -> arg_count, (q -> call_count + 1) * sizeof(int));
+                }
+
+                q -> arg_count[q -> call_count] = temp -> arg_count;
+                q -> arg_types[q -> call_count] = (int*)malloc(temp -> arg_count * sizeof(int));
+
+                for (int i = 0; i < temp -> arg_count; i++) {
+                    q -> arg_types[q -> call_count][i] = getExpressionType(temp -> args[i]);
+                }
+
+                q -> call_count++;
+            } else {
+                if ($1 -> storage_type == FUNCTION_TYPE) {
+                    if ($1 -> arg_count != temp -> arg_count) {
+                        fprintf(stderr, "Error at line %d: incorrect number of arguments in function call.\n", yylineno);
+                        exit(1);
+                    }
+
+                    for (int i = 0; i < temp -> arg_count; i++) {
+                        int type_1 = getExpressionType(temp -> args[i]);
+                        int type_2 = $1 -> args[i].arg_type;
+
+                        getResultType(type_1, type_2, NONE);
+                    }
+                }
+            }
         }
     ;
 
@@ -553,22 +816,29 @@ functions: functions function
             }
          ;
 
-function: { incrScope(); } f_head f_tail { hideScope(); $$ = (ASTNode*)temp_decl; }
+function: { incrScope(); } f_head f_tail
+            {
+                revisit(temp_decl -> entry -> storage_name);
+
+                hideScope();
+                
+                $$ = (ASTNode*)temp_decl;
+            }
         ;
 
-f_head: FUNCION { declared = 1; } IDENTIFIER LPAREN optional_arguments RPAREN ARROW return_type
+f_head: FUNCION { function_declared = 1; } IDENTIFIER LPAREN optional_arguments RPAREN ARROW return_type
         {
-            declared = 0;
+            function_declared = 0;
 
             ASTReturnType* temp = (ASTReturnType*)$8;
             temp_decl = (ASTFuncDecl*)newASTFuncDeclNode(temp -> ret_type, temp -> pointer, $3);
 
             temp_decl -> entry -> storage_type = FUNCTION_TYPE;
             temp_decl -> entry -> inferred_type = temp -> ret_type;
-
+            
             if ($5 != NULL) {
                 ASTDeclArgs* temp2 = (ASTDeclArgs*)$5;
-
+                
                 temp_decl -> entry -> args = temp2 -> args;
                 temp_decl -> entry -> arg_count = temp2 -> arg_count;
             } else {
@@ -609,9 +879,24 @@ arguments: arguments COMMA argument
             }
          ;
 
-argument: { declared = 1; } type variable 
+argument: { declared = 1; } type variable
             {
                 declared = 0;
+
+                switch ($3 -> storage_type) {
+                    case UNDEF:
+                        setDataType($3 -> storage_name, $2, UNDEF);
+                        break;
+                    case POINTER_TYPE:
+                        setDataType($3 -> storage_name, POINTER_TYPE, $2);
+                        break;
+                    case ARRAY_TYPE:
+                        setDataType($3 -> storage_name, ARRAY_TYPE, $2);
+                        break;
+                    default:
+                        break;
+                }
+                
                 $$ = defArg($2, $3 -> storage_name, 0);
             }
         ;
@@ -673,9 +958,32 @@ int main(int argc, char* argv[]) {
 
     printf("Syntax check: %s\n", flag == 0 ? "successful." : "failed.");
 
+    RevisitQueue* q = searchPrevQueue("imprima");
+    if (q == NULL) {
+        if (queue != NULL) {
+            queue = queue -> next;
+        }
+    } else {
+        q -> next = q -> next -> next;
+    }
+
+    if (queue != NULL) {
+        RevisitQueue* cur = queue;
+
+        while (cur != NULL) {
+            if (cur -> revisit_type == ASSIGN_CHECK) {
+                revisit(cur -> storage_name);
+            }
+
+            cur = cur -> next;
+        }
+    }
+
     if (queue != NULL) {
         printf("Unchecked item in the revisit queue.\n");
     }
+
+    funcDeclaration("imprima", VOID_TYPE, 1, NULL);
 
     yyout = fopen("table.out", "w");
     if (yyout == NULL) {

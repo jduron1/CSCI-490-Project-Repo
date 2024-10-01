@@ -6,6 +6,7 @@
 
 static int cur_scope = 0;
 static int declared = 0;
+static int function_declared = 0;
 extern int yylineno;
 
 void initSymbolTable() {
@@ -37,10 +38,10 @@ void insert(const char* name, int len, int type, int line_no) {
     }
 
     if (node == NULL) {
-        if(declared == 1) {
+        if (declared) {
             node = (StorageNode*)malloc(sizeof(StorageNode));
-            strncpy(node -> storage_name, name, len);
 
+            strncpy(node -> storage_name, name, len);
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
@@ -51,9 +52,9 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> next = table[hash_val];
             table[hash_val] = node; 
         } else {
-            node = (StorageNode*) malloc(sizeof(StorageNode));
-            strncpy(node -> storage_name, name, len);
+            node = (StorageNode*)malloc(sizeof(StorageNode));
 
+            strncpy(node -> storage_name, name, len);
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
@@ -64,10 +65,10 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> next = table[hash_val];
             table[hash_val] = node;
 
-            pushToQueue(node -> storage_name, ARG_CHECK);
+            pushToQueue(node, node -> storage_name, ARG_CHECK);
         }
     } else {
-        if (declared == 0) {
+        if (!declared) {
             Referenced* lines = node -> lines;
 
             while (lines -> next != NULL) {
@@ -77,14 +78,24 @@ void insert(const char* name, int len, int type, int line_no) {
             lines -> next = (Referenced*)malloc(sizeof(Referenced));
             lines -> next -> line_no = line_no;
             lines -> next -> next = NULL;
-        } else{
+        } else {
             if (node -> scope == cur_scope) {
                 fprintf(stderr, "Redefinition of %s at line %d.\n", name, yylineno);
                 exit(1);
-            } else{
-                node = (StorageNode*) malloc(sizeof(StorageNode));
-                strncpy(node -> storage_name, name, len);
+            } else if (function_declared) {
+                Referenced* lines = node -> lines;
 
+                while (lines -> next != NULL) {
+                    lines = lines -> next;
+                }
+
+                lines -> next = (Referenced*)malloc(sizeof(Referenced));
+                lines -> next -> line_no = line_no;
+                lines -> next -> next = NULL;
+            } else {
+                node = (StorageNode*)malloc(sizeof(StorageNode));
+
+                strncpy(node -> storage_name, name, len);
                 node -> storage_size = len;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
@@ -101,7 +112,7 @@ void insert(const char* name, int len, int type, int line_no) {
 
 StorageNode* lookup(const char* name) {
     unsigned int hash_val = hash(name);
-    StorageNode *node = table[hash_val];
+    StorageNode* node = table[hash_val];
 
     while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
@@ -110,7 +121,7 @@ StorageNode* lookup(const char* name) {
     return node;
 }
 
-void setType(const char* name, int storage_type, int inferred_type) {
+void setDataType(const char* name, int storage_type, int inferred_type) {
     StorageNode* node = lookup(name);
 
     node -> storage_type = storage_type;
@@ -120,7 +131,7 @@ void setType(const char* name, int storage_type, int inferred_type) {
     }
 }
 
-int getType(const char* name) {
+int getDataType(const char* name) {
     StorageNode* node = lookup(name);
 
     if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
@@ -130,7 +141,7 @@ int getType(const char* name) {
     }
 }
 
-Argument defArg(int arg_type, const char* arg_name, int pass){
+Argument defArg(int arg_type, const char* arg_name, int pass) {
     Argument arg;
 
     arg.arg_type = arg_type;
@@ -143,33 +154,36 @@ Argument defArg(int arg_type, const char* arg_name, int pass){
 int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *args) {
     StorageNode* node = lookup(name);
 
-    if (node -> storage_type != UNDEF) {
-        node -> storage_type = FUNCTION_TYPE;
-        node -> inferred_type = ret_type;
-        node -> arg_count = arg_count;
-        node -> args = args;
+    if (node != NULL) {
+        if (node -> storage_type == UNDEF) {
+            node -> storage_type = FUNCTION_TYPE;
+            node -> inferred_type = ret_type;
+            node -> arg_count = arg_count;
+            node -> args = args;
 
-        return 0;
-    } else{
-        fprintf(stderr, "Redefinition of %s at line %d.\n", name, yylineno);
-        exit(1);
+            return 0;
+        } else {
+            fprintf(stderr, "Redeclaration of function %s at line %d.\n", name, yylineno);
+            exit(1);
+        }
     }
 }
 
-int funcArgCheck(const char* name, int arg_count, Argument* args) {
-    int type_1, type_2;
+int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_count) {
     StorageNode* node = lookup(name);
 
-    if(node -> arg_count != arg_count){
-        fprintf(stderr, "Too few arguments to function %s at line %d.\n", name, yylineno);
-        exit(1);
-    }
-    
-    for (int i = 0; i < arg_count; i++) {
-        type_1 = node -> args[i].arg_type;
-        type_2 = args[i].arg_type;
+    for (int i = 0; i < call_count; i++) {
+        if (node -> arg_count != arg_count[i]) {
+            fprintf(stderr, "Function %s called with incorrect number of arguments at line %d.\n", name, yylineno);
+            exit(1);
+        }
 
-        getResultType(type_1, type_2, NONE);
+        for (int j = 0; j < arg_count[i]; j++) {
+            int type_1 = node -> args[j].arg_type;
+            int type_2 = arg_types[i][j];
+          
+            getResultType(type_1, type_2, NONE);
+        }
     }
 
     return 0;
@@ -197,15 +211,22 @@ void incrScope() {
     cur_scope++;
 }
 
-void pushToQueue(char* name, int type) {
+void pushToQueue(StorageNode* entry, char* name, int type) {
     RevisitQueue* q;
 
-    if(queue == NULL){
+    if(queue == NULL) {
         q = (RevisitQueue*)malloc(sizeof(RevisitQueue));
 
+        q -> entry = entry;
         q -> storage_name = name;
         q -> revisit_type = type;
         q -> next = NULL;
+
+        if (type == ARG_CHECK) {
+            q -> call_count = 0;
+        } else if (type == ASSIGN_CHECK) {
+            q -> assign_count = 0;
+        }
 
         queue = q;
     } else {
@@ -215,49 +236,101 @@ void pushToQueue(char* name, int type) {
             q = q -> next;
         }
 
-        q -> next = (RevisitQueue*) malloc(sizeof(RevisitQueue));
+        q -> next = (RevisitQueue*)malloc(sizeof(RevisitQueue));
 
+        q -> next -> entry = entry;
         q -> next -> storage_name = name;
         q -> next -> revisit_type = type;
         q -> next -> next = NULL;
+
+        if (type == ARG_CHECK) {
+            q -> next -> call_count = 0;
+        } else if (type == ASSIGN_CHECK) {
+            q -> next -> assign_count = 0;
+        }
     }		
 }
 
-int revisit(const char* name) {
-    RevisitQueue* q;
+RevisitQueue* searchQueue(const char* name) {
+    RevisitQueue* q = queue;
 
-    if (strcmp(queue -> storage_name, name) == 0) {
-        switch(queue -> revisit_type) {
-            case ARG_CHECK:
-                break;
-        }
-
-        queue = queue -> next;
-
-        return 0;
-    }
-
-    q = queue;
-
-    while (strcmp(q -> next -> storage_name, name) != 0) {
+    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
         q = q -> next;
     }
 
-    if (q == NULL) {
-        return 1;
+    return q;
+}
+
+RevisitQueue* searchPrevQueue(const char* name) {
+    if (queue == NULL) {
+        return NULL;
     }
 
-    switch (q -> next -> revisit_type) {
-        case ARG_CHECK:
+    if (strcmp(queue -> storage_name, name) == 0) {
+        return NULL;
+    }
+
+    RevisitQueue* q = queue;
+
+    while ((q != NULL) && (strcmp(q -> next -> storage_name, name) != 0)) {
+        q = q -> next;
+    }
+
+    return q;
+}
+
+int revisit(const char* name) {
+    RevisitQueue* q = searchQueue(name);
+
+    if (q == NULL) {
+        return -1;
+    }
+
+    switch (q -> revisit_type) {
+        case ARG_CHECK: {
+            if (!funcArgCheck(name, q -> call_count, q -> arg_types, q -> arg_count)) {
+                printf("Function %s called with correct number of arguments.\n", name);
+            }
+
+            RevisitQueue* prev = searchPrevQueue(name);
+
+            if (prev == NULL) {
+                queue = queue -> next;
+            } else {
+                prev -> next = prev -> next -> next;
+            }
+
+            break;
+        }
+
+        case ASSIGN_CHECK: {
+            int type_1 = getDataType(q -> entry -> storage_name);
+
+            for (int i = 0; i < q -> assign_count; i++) {
+                int type_2 = getExpressionType(q -> nodes[i]);
+
+                getResultType(type_1, type_2, NONE);
+            }
+
+            RevisitQueue* prev = searchPrevQueue(name);
+
+            if (prev == NULL) {
+                queue = queue -> next;
+            } else {
+                prev -> next = prev -> next -> next;
+            }
+
+            break;
+        }
+
+        default:
             break;
     }
-
-    q -> next = q -> next -> next;
 
     return 0;
 }
 
-void printSymbolTable(FILE* of){
+void printSymbolTable(FILE* of) {
     fprintf(of, "------------ -------------- ------ ------------\n");
     fprintf(of, "Name         Type           Scope  Line Numbers\n");
     fprintf(of, "------------ -------------- ------ ------------\n");
@@ -286,6 +359,9 @@ void printSymbolTable(FILE* of){
                     case BOOL_TYPE:
                         fprintf(of, "%-15s", "bool");
                         break;
+                    case VOID_TYPE:
+                        fprintf(of, "%-15s", "void");
+                        break;                    
                     case ARRAY_TYPE:
                         fprintf(of, "array of ");
 
@@ -304,6 +380,9 @@ void printSymbolTable(FILE* of){
                                 break;
                             case BOOL_TYPE:
                                 fprintf(of, "%-6s", "bool");
+                                break;
+                            case VOID_TYPE:
+                                fprintf(of, "%-6s", "void");
                                 break;
                             default:
                                 fprintf(of, "%-13s", "undef");
@@ -337,7 +416,7 @@ void printSymbolTable(FILE* of){
 
                         break;
                     case FUNCTION_TYPE:
-                        fprintf(of, "%-6s", "function returns ");
+                        fprintf(of, "%-6s", "func ret ");
 
                         switch (node -> inferred_type) {
                             case INT_TYPE:
@@ -354,6 +433,9 @@ void printSymbolTable(FILE* of){
                                 break;
                             case BOOL_TYPE:
                                 fprintf(of, "%-6s", "bool");
+                                break;
+                            case VOID_TYPE:
+                                fprintf(of, "%-6s", "void");
                                 break;
                             default:
                                 fprintf(of, "%-4s", "undef");
@@ -391,7 +473,11 @@ void printRevisitQueue(FILE* of) {
         fprintf(of, "%-13s", q -> storage_name);
 
         if (q -> revisit_type == ARG_CHECK) {
-            fprintf(of,"%s","Parameter Check");
+            fprintf(of, "%s", "Argument check ");
+            fprintf(of, "for %d function calls.", q -> call_count);
+        } else if (q -> revisit_type == ASSIGN_CHECK) {
+            fprintf(of, "%s", "Assignment check ");
+            fprintf(of, "for %d assignments.", q -> assign_count);
         }
 
         fprintf(of, "\n");
