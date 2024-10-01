@@ -363,6 +363,5 @@ void typeError(int type_1, int type_2, int op) {
     }
 
     fprintf(stderr, " in line %d.\n", yylineno);
-
     exit(1);
 }

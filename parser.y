@@ -175,7 +175,7 @@ array: LBRACKET INTEGER RBRACKET
      | LBRACKET expression RBRACKET
         {
             if (declared) {
-                fprintf(stderr, "Error at line %d: array size must be a constant.\n", yylineno);
+                fprintf(stderr, "Error at line %d: array size must be an integer.\n", yylineno);
                 exit(1);
             }
         }
@@ -835,10 +835,10 @@ f_head: FUNCION { function_declared = 1; } IDENTIFIER LPAREN optional_arguments 
 
             temp_decl -> entry -> storage_type = FUNCTION_TYPE;
             temp_decl -> entry -> inferred_type = temp -> ret_type;
-
+            
             if ($5 != NULL) {
                 ASTDeclArgs* temp2 = (ASTDeclArgs*)$5;
-
+                
                 temp_decl -> entry -> args = temp2 -> args;
                 temp_decl -> entry -> arg_count = temp2 -> arg_count;
             } else {
@@ -896,7 +896,7 @@ argument: { declared = 1; } type variable
                     default:
                         break;
                 }
-
+                
                 $$ = defArg($2, $3 -> storage_name, 0);
             }
         ;

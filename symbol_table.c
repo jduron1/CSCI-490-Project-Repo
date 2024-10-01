@@ -45,7 +45,7 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced*) malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
 
@@ -58,7 +58,7 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced*) malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
 
@@ -99,7 +99,7 @@ void insert(const char* name, int len, int type, int line_no) {
                 node -> storage_size = len;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
-                node -> lines = (Referenced*)malloc(sizeof(Referenced));
+                node -> lines = (Referenced*) malloc(sizeof(Referenced));
                 node -> lines -> line_no = line_no;
                 node -> lines -> next = NULL;
 
@@ -181,7 +181,7 @@ int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_cou
         for (int j = 0; j < arg_count[i]; j++) {
             int type_1 = node -> args[j].arg_type;
             int type_2 = arg_types[i][j];
-
+          
             getResultType(type_1, type_2, NONE);
         }
     }
@@ -361,7 +361,7 @@ void printSymbolTable(FILE* of) {
                         break;
                     case VOID_TYPE:
                         fprintf(of, "%-15s", "void");
-                        break;
+                        break;                    
                     case ARRAY_TYPE:
                         fprintf(of, "array of ");
 

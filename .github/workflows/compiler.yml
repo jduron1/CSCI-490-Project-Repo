@@ -1,0 +1,26 @@
+name: Compilation Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y -f build-essential gcc flex bison cmake
+  build:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Project
+        run: |
+          flex scanner.l
+          bison -d parser.y
+          gcc lex.yy.c parser.tab.c

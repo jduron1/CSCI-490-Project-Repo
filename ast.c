@@ -237,7 +237,7 @@ ASTNode* newASTBoolNode(enum BoolOpEnum op, ASTNode* left, ASTNode* right) {
     } else {
         node -> data_type = getResultType(getExpressionType(left), UNDEF, NOT_OP);
     }
-
+  
     return (ASTNode*)node;
 }
 
