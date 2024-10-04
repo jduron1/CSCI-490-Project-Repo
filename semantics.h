@@ -21,7 +21,7 @@
 #define REL_OP 6
 #define EQU_OP 7
 
-int getResultType (int, int, int);
+int getResultType(int, int, int);
 void typeError(int, int, int);
 
 #endif

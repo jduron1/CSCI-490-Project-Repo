@@ -3,10 +3,12 @@
 #include <string.h>
 #include "semantics.h"
 #include "symbol_table.h"
+#include "ast.h"
 
 static int cur_scope = 0;
 static int declared = 0;
 static int function_declared = 0;
+static int msg_count = 0;
 extern int yylineno;
 
 void initSymbolTable() {
@@ -45,10 +47,14 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*) malloc(sizeof(Referenced));
+            node -> lines = (Referenced*)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
-
+            node -> array_size = NULL;
+            node -> indices = NULL;
+            node -> index_count = 0;
+            node -> cur_idx = 0;
+            
             node -> next = table[hash_val];
             table[hash_val] = node; 
         } else {
@@ -58,10 +64,14 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*) malloc(sizeof(Referenced));
+            node -> lines = (Referenced*)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
-
+            node -> array_size = NULL;
+            node -> indices = NULL;
+            node -> index_count = 0;
+            node -> cur_idx = 0;
+            
             node -> next = table[hash_val];
             table[hash_val] = node;
 
@@ -99,14 +109,18 @@ void insert(const char* name, int len, int type, int line_no) {
                 node -> storage_size = len;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
-                node -> lines = (Referenced*) malloc(sizeof(Referenced));
+                node -> lines = (Referenced*)malloc(sizeof(Referenced));
                 node -> lines -> line_no = line_no;
                 node -> lines -> next = NULL;
-
+                node -> array_size = NULL;
+                node -> indices = NULL;
+                node -> index_count = 0;
+                node -> cur_idx = 0;
+                
                 node -> next = table[hash_val];
                 table[hash_val] = node;
-            }	
-        }		
+            }
+        }
     }
 }
 
@@ -134,17 +148,22 @@ void setDataType(const char* name, int storage_type, int inferred_type) {
 int getDataType(const char* name) {
     StorageNode* node = lookup(name);
 
-    if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
-        return node -> storage_type;
+    if (node != NULL) {
+        if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
+            return node -> storage_type;
+        } else {
+            return node -> inferred_type;
+        }
     } else {
-        return node -> inferred_type;
+        return UNDEF;
     }
 }
 
-Argument defArg(int arg_type, const char* arg_name, int pass) {
+Argument defArg(int arg_type, int storage_type, const char* arg_name, int pass) {
     Argument arg;
 
     arg.arg_type = arg_type;
+    arg.storage_type = storage_type;
     strcpy(arg.arg_name, arg_name);
     arg.pass = pass;
 
@@ -181,7 +200,7 @@ int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_cou
         for (int j = 0; j < arg_count[i]; j++) {
             int type_1 = node -> args[j].arg_type;
             int type_2 = arg_types[i][j];
-          
+
             getResultType(type_1, type_2, NONE);
         }
     }
@@ -272,7 +291,7 @@ RevisitQueue* searchPrevQueue(const char* name) {
 
     RevisitQueue* q = queue;
 
-    while ((q != NULL) && (strcmp(q -> next -> storage_name, name) != 0)) {
+    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
         q = q -> next;
     }
 
@@ -330,6 +349,20 @@ int revisit(const char* name) {
     return 0;
 }
 
+void addToMessages(const char* msg) {
+    if (msg_count == 0) {
+        messages = (char**)malloc(sizeof(char*));
+    } else {
+        messages = (char**)realloc(messages, (msg_count + 1) * sizeof(char*));
+    }
+
+    messages[msg_count] = (char*)malloc(strlen(msg) + 1);
+
+    strcpy(messages[msg_count], msg);
+
+    msg_count++;
+}
+
 void printSymbolTable(FILE* of) {
     fprintf(of, "------------ -------------- ------ ------------\n");
     fprintf(of, "Name         Type           Scope  Line Numbers\n");
@@ -361,7 +394,7 @@ void printSymbolTable(FILE* of) {
                         break;
                     case VOID_TYPE:
                         fprintf(of, "%-15s", "void");
-                        break;                    
+                        break;
                     case ARRAY_TYPE:
                         fprintf(of, "array of ");
 

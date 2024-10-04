@@ -1,6 +1,7 @@
 %{
     #include "semantics.c"
 	#include "symbol_table.c"
+    #include "code_generation.c"
 	#include "ast.h"
 	#include "ast.c"
 	#include <stdio.h>
@@ -15,6 +16,9 @@
     extern int yylex();
     void yyerror();
 
+    ASTNode* root;
+    void freeAST(ASTNode*);
+
     void addToNames(StorageNode*);
     StorageNode** names;
     int name_count = 0;
@@ -28,6 +32,8 @@
     int else_if_count = 0;
 
     ASTFuncDecl* temp_decl;
+
+    int check_size = 0;
 %}
 
 %union {
@@ -38,12 +44,12 @@
 
     int data_type;
     int const_type;
-    int array_size;
+    char* array_size;
 }
 
 %token <val> CARACTER BOOLEANO ENTERO REAL CADENA VACIO
 %token <val> FUNCION CIERTO FALSO SI SINO
-%token <val> POR MIENTRAS PARA CONTINUA REGRESA
+%token <val> POR MIENTRAS PARAR CONTINUAR REGRESAR
 %token <val> ADD SUB MUL DIV MOD EXP ADD_ASSIGN SUB_ASSIGN
 %token <val> MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN EXP_ASSIGN
 %token <val> OR AND NOT EQ NE LESS LE GREAT GE ARROW LPAREN RPAREN
@@ -82,9 +88,9 @@
 %type <node> statements tail
 %type <node> if else_if else
 %type <node> for while
-%type <node> optional_functions functions function
+%type <node> program_functions functions function
 %type <node> call call_arguments call_argument
-%type <node> optional_arguments arguments
+%type <node> function_arguments arguments
 %type <arg> argument
 %type <node> return_type
 
@@ -92,8 +98,17 @@
 
 %%
 
-program: optional_functions { traverseAST($1); }
-       | declarations { traverseAST($1); } statements { traverseAST($3); } REGRESA SEMICOLON optional_functions { traverseAST($7); }
+program: program_functions
+            {
+                root = (ASTNode*)$1;
+                traverseAST(root);
+
+                ASTFuncDeclarations* temp = (ASTFuncDeclarations*)$$;
+
+                for (int i = 0; i < temp -> func_declaration_count; i++) {
+                    generateFuncDeclCode(of, temp -> func_declarations[i]);
+                }
+            }
        ;
 
 declarations: declarations declaration
@@ -149,6 +164,18 @@ names: names COMMA variable { addToNames($3); }
 variable: IDENTIFIER
             {
                 $$ = $1;
+
+                if ($1 -> storage_type == ARRAY_TYPE) {
+                    if ($1 -> indices != NULL) {
+                        for (int i = 0; i < $1 -> index_count; i++) {
+                            free($1 -> indices[i]);
+                        }
+
+                        free($1 -> indices);
+                    }
+
+                    $1 -> indices = NULL;
+                }
             }
         | pointer IDENTIFIER
             {
@@ -158,9 +185,83 @@ variable: IDENTIFIER
         | IDENTIFIER array
             {
                 if (declared) {
+                    char temp[32];
+
+                    sprintf(temp, "%d", 0);
+
                     $1 -> storage_type = ARRAY_TYPE;
-                    $1 -> array_size = $2;
+                    $1 -> vals = NULL;
+
+                    $1 -> array_size = (char*)malloc(strlen(temp) + 1);
+                    if ($1 -> array_size == NULL) {
+                        fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                        exit(1);
+                    }
+
+                    strcpy($1 -> array_size, temp);
+
                     $$ = $1;
+                }
+            
+                if ($2 != NULL) {
+                    if ($1 -> indices == NULL) {
+                        $1 -> indices = (char**)malloc(sizeof(char*));
+                        $1 -> index_count = 1;
+                    } else {
+                        $1 -> indices = (char**)realloc($1 -> indices, ($1 -> index_count + 1) * sizeof(char*));
+                        $1 -> index_count++;
+                    }
+
+                    int length = strlen($2);
+                    $1 -> indices[$1 -> index_count - 1] = (char*)malloc((length + 1) * sizeof(char));
+                    if ($1 -> indices[$1 -> index_count - 1] == NULL) {
+                        fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                        exit(1);
+                    }
+
+                    strcpy($1 -> indices[$1 -> index_count - 1], $2);
+                    $1 -> indices[$1 -> index_count - 1][length] = '\0';
+                }
+            }
+        | pointer IDENTIFIER array
+            {
+                if (declared) {
+                    char temp[32];
+
+                    sprintf(temp, "%d", 0);
+
+                    $2 -> storage_type = ARRAY_TYPE;
+                    $2 -> vals = NULL;
+
+                    $2 -> array_size = (char*)malloc(strlen(temp) + 1);
+                    if ($2 -> array_size == NULL) {
+                        fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                        exit(1);
+                    }
+
+                    strcpy($2 -> array_size, temp);
+
+                    $$ = $2;
+                }
+            
+                if ($3 != NULL) {
+                    if ($2 -> indices == NULL) {
+                        $2 -> indices = (char**)malloc(sizeof(char*));
+                        $2 -> index_count = 1;
+                    } else {
+                        $2 -> indices = (char**)realloc($2 -> indices, ($2 -> index_count + 1) * sizeof(char*));
+                        $2 -> index_count++;
+                    }
+
+                    int length = strlen($3);
+                    $2 -> indices[$2 -> index_count - 1] = (char*)malloc((length + 1) * sizeof(char));
+                    if ($2 -> indices[$2 -> index_count - 1] == NULL) {
+                        fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                        exit(1);
+                    }
+
+                    strcpy($2 -> indices[$2 -> index_count - 1], $3);
+                    $2 -> indices[$2 -> index_count - 1][length] = '\0';
                 }
             }
         ;
@@ -170,14 +271,119 @@ pointer: MUL
 
 array: LBRACKET INTEGER RBRACKET
         {
-            $$ = $2.integer;
-        }
-     | LBRACKET expression RBRACKET
-        {
-            if (declared) {
-                fprintf(stderr, "Error at line %d: array size must be an integer.\n", yylineno);
+            char temp[32];
+            sprintf(temp, "%lld", $2.integer);
+
+            $$ = (char*)malloc(strlen(temp) + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
             }
+
+            sprintf($$, "%s", temp);
+            check_size = $2.integer;
+        }
+     | LBRACKET IDENTIFIER RBRACKET
+        {
+            char temp[strlen($2 -> storage_name) + 1];
+            strcpy(temp, $2 -> storage_name);
+            
+            $$ = (char*)malloc(strlen(temp) + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            strcpy($$, temp);
+            check_size = $2 -> val.integer;
+        }
+     | LBRACKET INTEGER ADD IDENTIFIER RBRACKET
+        {
+            char temp[32];
+            sprintf(temp, "%lld", $2.integer);
+
+            $$ = (char*)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" + ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s + %s", temp, $4 -> storage_name);
+
+            check_size = $2.integer + $4 -> val.integer;
+        }
+     | LBRACKET IDENTIFIER ADD INTEGER RBRACKET
+        {
+            char temp[32];
+            sprintf(temp, "%lld", $4.integer);
+
+            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" + ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s + %s", $2 -> storage_name, temp);
+
+            check_size = $2 -> val.integer + $4.integer;
+        }
+     | LBRACKET IDENTIFIER ADD IDENTIFIER RBRACKET
+        {
+            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" + ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s + %s", $2 -> storage_name, $4 -> storage_name);
+
+            check_size = $2 -> val.integer + $4 -> val.integer;
+        }
+     | LBRACKET INTEGER SUB IDENTIFIER RBRACKET
+        {
+            char temp[32];
+            sprintf(temp, "%lld", $2.integer);
+
+            $$ = (char*)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" - ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s - %s", temp, $4 -> storage_name);
+
+            check_size = $2.integer - $4 -> val.integer;
+        }
+     | LBRACKET IDENTIFIER SUB INTEGER RBRACKET
+        {
+            char temp[32];
+            sprintf(temp, "%lld", $4.integer);
+
+            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" - ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s - %s", $2 -> storage_name, temp);
+
+            check_size = $2 -> val.integer - $4.integer;
+        }
+     | LBRACKET IDENTIFIER SUB IDENTIFIER RBRACKET
+        {
+            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" - ") + 1);
+            if ($$ == NULL) {
+                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                exit(1);
+            }
+
+            sprintf($$, "%s - %s", $2 -> storage_name, $4 -> storage_name);
+
+            check_size = $2 -> val.integer - $4 -> val.integer;
+        }
+      | LBRACKET RBRACKET
+        {
+            $$ = NULL;
         }
      ;
 
@@ -195,18 +401,29 @@ var_init: IDENTIFIER ASSIGN constant
             }
         ;
 
-array_init: IDENTIFIER array ASSIGN LBRACE values RBRACE
+array_init: IDENTIFIER LBRACKET RBRACKET ASSIGN LBRACE values RBRACE
             {
-                if ($1 -> array_size != val_count) {
-                    fprintf(stderr, "Error at line %d: incorrect number of elements in array.\n", yylineno);
+                if (val_count == 0) {
+                    fprintf(stderr, "Error at line %d: no values in array initialization.\n", yylineno);
                     exit(1);
                 }
 
-                $1 -> vals = vals;
-                $1 -> array_size = $2;
-                $$ = $1;
+                char temp[32];
 
-                val_count = 0;
+                $1 -> storage_type = ARRAY_TYPE;
+                $1 -> vals = vals;
+
+                sprintf(temp, "%d", val_count);
+
+                $1 -> array_size = (char*)malloc(strlen(temp) + 1);
+                if ($1 -> array_size == NULL) {
+                    fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
+                    exit(1);
+                }
+
+                strcpy($1 -> array_size, temp);
+
+                $$ = $1;
             }
           ;
 
@@ -248,11 +465,11 @@ statement: if
             {
                 $$ = $1;
             }
-         | CONTINUA SEMICOLON
+         | CONTINUAR SEMICOLON
             {
                 $$ = newASTSimpleNode(0);
             }
-         | PARA SEMICOLON
+         | PARAR SEMICOLON
             {
                 $$ = newASTSimpleNode(1);
             }
@@ -303,10 +520,10 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
 
             if ($4.integer < $6.integer) {
                 temp = newASTIncrNode($2, 0, 0);
-                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTConstNode(INT_TYPE, $6));
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTConstNode(INT_TYPE, $6));
             } else {
                 temp = newASTIncrNode($2, 1, 0);
-                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTConstNode(INT_TYPE, $6));
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTConstNode(INT_TYPE, $6));
             }
 
             ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
@@ -321,10 +538,10 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
 
             if ($4.integer < $6 -> val.integer) {
                 temp = newASTIncrNode($2, 0, 0);
-                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTRefNode($6, 0));
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTRefNode($6, 0));
             } else {
                 temp = newASTIncrNode($2, 1, 0);
-                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTRefNode($6, 0));
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTRefNode($6, 0));
             }
 
             ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
@@ -332,42 +549,40 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
             $$ = newASTForNode(temp3, temp2, temp, $7);
             setLoopCounter($$);
         }
-    | POR type IDENTIFIER EN INTEGER ELLIPSIS INTEGER tail
+    | POR IDENTIFIER EN INTEGER ELLIPSIS IDENTIFIER ADD INTEGER tail
         {
             ASTNode* temp;
             ASTNode* temp2;
 
-            if ($5.integer < $7.integer) {
-                temp = newASTIncrNode($3, 0, 0);
-                temp2 = newASTRelNode(OP_LE, newASTRefNode($3, 0), newASTConstNode(INT_TYPE, $7));
+            if ($4.integer < $6 -> val.integer + $8.integer) {
+                temp = newASTIncrNode($2, 0, 0);
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTArithNode(OP_ADD, newASTRefNode($6, 0), newASTConstNode(INT_TYPE, $8)));
             } else {
-                temp = newASTIncrNode($3, 1, 0);
-                temp2 = newASTRelNode(OP_GE, newASTRefNode($3, 0), newASTConstNode(INT_TYPE, $7));
+                temp = newASTIncrNode($2, 1, 0);
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTArithNode(OP_ADD, newASTRefNode($6, 0), newASTConstNode(INT_TYPE, $8)));
             }
 
-            setDataType($3 -> storage_name, $2, UNDEF);
-            ASTNode* temp3 = newASTAssignNode($3, 0, newASTConstNode(INT_TYPE, $5));
+            ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
 
-            $$ = newASTForNode(temp3, temp2, temp, $8);
+            $$ = newASTForNode(temp3, temp2, temp, $9);
             setLoopCounter($$);
         }
-    | POR type IDENTIFIER EN INTEGER ELLIPSIS IDENTIFIER tail
+    | POR IDENTIFIER EN INTEGER ELLIPSIS IDENTIFIER SUB INTEGER tail
         {
             ASTNode* temp;
             ASTNode* temp2;
 
-            if ($5.integer < $7 -> val.integer) {
-                temp = newASTIncrNode($3, 0, 0);
-                temp2 = newASTRelNode(OP_LE, newASTRefNode($3, 0), newASTRefNode($7, 0));
+            if ($4.integer < $6 -> val.integer - $8.integer) {
+                temp = newASTIncrNode($2, 0, 0);
+                temp2 = newASTRelNode(OP_GE, newASTRefNode($2, 0), newASTArithNode(OP_SUB, newASTRefNode($6, 0), newASTConstNode(INT_TYPE, $8)));
             } else {
-                temp = newASTIncrNode($3, 1, 0);
-                temp2 = newASTRelNode(OP_GE, newASTRefNode($3, 0), newASTRefNode($7, 0));
+                temp = newASTIncrNode($2, 1, 0);
+                temp2 = newASTRelNode(OP_LE, newASTRefNode($2, 0), newASTArithNode(OP_SUB, newASTRefNode($6, 0), newASTConstNode(INT_TYPE, $8)));
             }
 
-            setDataType($3 -> storage_name, $2, UNDEF);
-            ASTNode* temp3 = newASTAssignNode($3, 0, newASTConstNode(INT_TYPE, $5));
+            ASTNode* temp3 = newASTAssignNode($2, 0, newASTConstNode(INT_TYPE, $4));
 
-            $$ = newASTForNode(temp3, temp2, temp, $8);
+            $$ = newASTForNode(temp3, temp2, temp, $9);
             setLoopCounter($$);
         }
    ;
@@ -446,7 +661,7 @@ expression: expression ADD expression
             }
           | LPAREN expression RPAREN
             {
-                $$ = $2;
+                $$ = newASTParenNode($2);
             }
           | var_ref
             {
@@ -795,7 +1010,7 @@ call_argument: call_argument COMMA expression
                 }
              ;
 
-optional_functions: functions
+program_functions: functions
                     {
                         $$ = $1;
                     }
@@ -826,7 +1041,7 @@ function: { incrScope(); } f_head f_tail
             }
         ;
 
-f_head: FUNCION { function_declared = 1; } IDENTIFIER LPAREN optional_arguments RPAREN ARROW return_type
+f_head: FUNCION { function_declared = 1; } IDENTIFIER LPAREN function_arguments RPAREN ARROW return_type
         {
             function_declared = 0;
 
@@ -835,10 +1050,10 @@ f_head: FUNCION { function_declared = 1; } IDENTIFIER LPAREN optional_arguments 
 
             temp_decl -> entry -> storage_type = FUNCTION_TYPE;
             temp_decl -> entry -> inferred_type = temp -> ret_type;
-            
+
             if ($5 != NULL) {
                 ASTDeclArgs* temp2 = (ASTDeclArgs*)$5;
-                
+
                 temp_decl -> entry -> args = temp2 -> args;
                 temp_decl -> entry -> arg_count = temp2 -> arg_count;
             } else {
@@ -858,7 +1073,7 @@ return_type: type
             }
            ;
 
-optional_arguments: arguments
+function_arguments: arguments
                     {
                         $$ = $1;
                     }
@@ -883,6 +1098,8 @@ argument: { declared = 1; } type variable
             {
                 declared = 0;
 
+                int type = $3 -> storage_type;
+
                 switch ($3 -> storage_type) {
                     case UNDEF:
                         setDataType($3 -> storage_name, $2, UNDEF);
@@ -896,15 +1113,15 @@ argument: { declared = 1; } type variable
                     default:
                         break;
                 }
-                
-                $$ = defArg($2, $3 -> storage_name, 0);
+
+                $$ = defArg($2, type, $3 -> storage_name, 0);
             }
         ;
 
-f_tail: LBRACE optional_declarations optional_statements optional_return RBRACE
-      ;
+f_tail: LBRACE function_declarations function_statements function_return RBRACE
+    ;
 
-optional_declarations: declarations
+function_declarations: declarations
                         {
                             temp_decl -> declarations = $1;
                         }
@@ -914,7 +1131,7 @@ optional_declarations: declarations
                         }
                      ;
 
-optional_statements: statements
+function_statements: statements
                         {
                             temp_decl -> statements = $1;
                         }
@@ -924,7 +1141,7 @@ optional_statements: statements
                         }
                      ;
 
-optional_return: REGRESA expression SEMICOLON
+function_return: REGRESAR expression SEMICOLON
         {
             temp_decl -> return_node = newASTReturnNode(temp_decl -> ret_type, $2);
         }
@@ -942,6 +1159,17 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    int length = strlen(argv[1]) + 1;
+
+    of = fopen("output.cpp", "w");
+    if (of == NULL) {
+        fprintf(stderr, "Error opening output file.\n");
+        exit(1);
+    }
+
+    fprintf(of, "#include <bits/stdc++.h>\n");
+    fprintf(of, "using namespace std;\n\n");
+
     initSymbolTable();
 
     queue = NULL;
@@ -958,13 +1186,26 @@ int main(int argc, char* argv[]) {
 
     printf("Syntax check: %s\n", flag == 0 ? "successful." : "failed.");
 
-    RevisitQueue* q = searchPrevQueue("imprima");
+    RevisitQueue* q = searchPrevQueue("imprimir");
     if (q == NULL) {
         if (queue != NULL) {
             queue = queue -> next;
         }
     } else {
-        q -> next = q -> next -> next;
+        if (q -> next != NULL) {
+            q -> next = q -> next -> next;
+        }
+    }
+
+    q = searchPrevQueue("leer");
+    if (q == NULL) {
+        if (queue != NULL) {
+            queue = queue -> next;
+        }
+    } else {
+        if (q -> next != NULL) {
+            q -> next = q -> next -> next;
+        }
     }
 
     if (queue != NULL) {
@@ -983,7 +1224,8 @@ int main(int argc, char* argv[]) {
         printf("Unchecked item in the revisit queue.\n");
     }
 
-    funcDeclaration("imprima", VOID_TYPE, 1, NULL);
+    funcDeclaration("imprimir", VOID_TYPE, 1, NULL);
+    funcDeclaration("leer", VOID_TYPE, 1, NULL);
 
     yyout = fopen("table.out", "w");
     if (yyout == NULL) {

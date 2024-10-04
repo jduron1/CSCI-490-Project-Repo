@@ -242,6 +242,14 @@ int getResultType(int type_1, int type_2, int op) {
                     }
 
                     break;
+                case BOOL_TYPE:
+                    if (type_2 == BOOL_TYPE) {
+                        return BOOL_TYPE;
+                    } else {
+                        typeError(type_1, type_2, op);
+                    }
+
+                    break;
                 default:
                     typeError(type_1, type_2, op);
                     break;
@@ -256,9 +264,6 @@ int getResultType(int type_1, int type_2, int op) {
 }
 
 void typeError(int type_1, int type_2, int op) {
-    // fprintf(stderr, "Type conflict between %d and %d in operation %d at line %d.\n", type_1, type_2, op, yylineno);
-    // exit(1);
-
     fprintf(stderr, "Type error between ");
 
     switch (type_1) {
@@ -363,5 +368,6 @@ void typeError(int type_1, int type_2, int op) {
     }
 
     fprintf(stderr, " in line %d.\n", yylineno);
+
     exit(1);
 }

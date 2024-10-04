@@ -20,6 +20,7 @@ typedef union ValueTypeUnion {
 
 typedef struct ArgumentStruct {
     int arg_type;
+    int storage_type;
     char arg_name[MAX_TOKEN_LEN];
     ValueType val;
     int pass;
@@ -39,7 +40,10 @@ typedef struct StorageNodeStruct {
     int storage_type;
     int inferred_type;
     ValueType* vals;
-    int array_size;
+    char* array_size;
+    char** indices;
+    int index_count;
+    int cur_idx;
     Argument* args;
     int arg_count;
     struct StorageNodeStruct* next;
@@ -59,6 +63,7 @@ typedef struct RevisitQueueStruct {
 
 static StorageNode** table;
 static RevisitQueue* queue;
+static char** messages;
 
 void initSymbolTable();
 unsigned int hash(const char* key);
@@ -66,7 +71,7 @@ void insert(const char*, int, int, int);
 StorageNode* lookup(const char*);
 void setDataType(const char*, int, int);
 int getDataType(const char*);
-Argument defArg(int, const char*, int);
+Argument defArg(int, int, const char*, int);
 int funcDeclaration(const char*, int, int, Argument*);
 int funcArgCheck(const char*, int, int**, int*);
 void hideScope();
@@ -75,6 +80,7 @@ void pushToQueue(StorageNode*, char*, int);
 RevisitQueue* searchQueue(const char*);
 RevisitQueue* searchPrevQueue(const char*);
 int revisit(const char*);
+void addToMessages(const char*);
 void printSymbolTable(FILE*);
 void printRevisitQueue(FILE*);
 
