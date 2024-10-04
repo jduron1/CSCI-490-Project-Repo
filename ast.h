@@ -26,7 +26,8 @@ typedef enum NodeTypeEnum {
     FUNC_DECL,
     RET_TYPE,
     DECL_ARGS,
-    RETURN_NODE
+    RETURN_NODE,
+    PAREN_NODE
 } NodeType;
 
 typedef enum ArithOpEnum {
@@ -241,6 +242,11 @@ typedef struct ASTReturnStruct {
     struct ASTNodeStruct* ret_val;
 } ASTReturn;
 
+typedef struct ASTParenStruct {
+    enum NodeTypeEnum type;
+    struct ASTNodeStruct* node;
+} ASTParen;
+
 ASTNode* newASTNode(NodeType, ASTNode*, ASTNode*);
 ASTNode* newASTDeclarationsNode(ASTNode**, int, ASTNode*);
 ASTNode* newASTDeclNode(int, StorageNode**, int);
@@ -267,6 +273,7 @@ ASTNode* newASTFuncDeclNode(int, int, StorageNode*);
 ASTNode* newASTReturnTypeNode(int, int);
 ASTNode* newASTDeclArgsNode(Argument*, int, Argument);
 ASTNode* newASTReturnNode(int, ASTNode*);
+ASTNode* newASTParenNode(ASTNode*);
 int getExpressionType(ASTNode*);
 void printASTNode(ASTNode*);
 void traverseAST(ASTNode*);

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "code_generation.h"
+#include "ast.h"
 
 static int contains_revisit = 0;
 extern int yylineno;
@@ -237,7 +239,7 @@ ASTNode* newASTBoolNode(enum BoolOpEnum op, ASTNode* left, ASTNode* right) {
     } else {
         node -> data_type = getResultType(getExpressionType(left), UNDEF, NOT_OP);
     }
-  
+
     return (ASTNode*)node;
 }
 
@@ -348,6 +350,15 @@ ASTNode* newASTReturnNode(int ret_type, ASTNode* ret_val) {
     return (ASTNode*)node;
 }
 
+ASTNode* newASTParenNode(ASTNode* node) {
+    ASTParen* paren_node = (ASTParen*)malloc(sizeof(ASTParen));
+
+    paren_node -> type = PAREN_NODE;
+    paren_node -> node = node;
+
+    return (ASTNode*)paren_node;
+}
+
 int getExpressionType(ASTNode* node) {
     switch (node -> type) {
         case ARITH_NODE: {
@@ -365,16 +376,29 @@ int getExpressionType(ASTNode* node) {
 
         case BOOL_NODE: {
             ASTBool* temp_bool = (ASTBool*)node;
+
+            if (temp_bool -> op != NOT_OP) {
+                temp_bool -> data_type = getResultType(getExpressionType(temp_bool -> left), getExpressionType(temp_bool -> right), BOOL_OP);
+            } else {
+                temp_bool -> data_type = getResultType(getExpressionType(temp_bool -> left), UNDEF, NOT_OP);
+            }
+
             return temp_bool -> data_type;
         }
 
         case REL_NODE: {
             ASTRel* temp_rel = (ASTRel*)node;
+
+            temp_rel -> data_type = getResultType(getExpressionType(temp_rel -> left), getExpressionType(temp_rel -> right), REL_OP);
+
             return temp_rel -> data_type;
         }
 
         case EQU_NODE: {
             ASTEqu* temp_equ = (ASTEqu*)node;
+
+            temp_equ -> data_type = getResultType(getExpressionType(temp_equ -> left), getExpressionType(temp_equ -> right), EQU_OP);
+
             return temp_equ -> data_type;
         }
 
@@ -383,8 +407,10 @@ int getExpressionType(ASTNode* node) {
 
             if (temp_ref -> entry -> storage_type == INT_TYPE || temp_ref -> entry -> storage_type == REAL_TYPE || temp_ref -> entry -> storage_type == CHAR_TYPE || temp_ref -> entry -> storage_type == STRING_TYPE || temp_ref -> entry -> storage_type == BOOL_TYPE) {
                 return temp_ref -> entry -> storage_type;
-            } else {
+            } else if (temp_ref -> entry -> storage_type == ARRAY_TYPE) {
                 return temp_ref -> entry -> inferred_type;
+            } else if (temp_ref -> entry -> storage_type == POINTER_TYPE) {
+                return INT_TYPE;
             }
         }
 
@@ -402,6 +428,11 @@ int getExpressionType(ASTNode* node) {
             }
 
             return temp_func_call -> entry -> inferred_type;
+        }
+
+        case PAREN_NODE: {
+            ASTParen* temp_paren = (ASTParen*)node;
+            return getExpressionType(temp_paren -> node);
         }
 
         default:
@@ -843,6 +874,10 @@ void printASTNode(ASTNode* node) {
             printf("Return Node of ret_type %d\n", temp_return -> ret_type);
             break;
         }
+
+        case PAREN_NODE:
+            printf("Parentheses Node\n");
+            break;
 
         default:
             fprintf(stderr, "Error: unrecognized node type %d at line %d.\n", node -> type, yylineno);

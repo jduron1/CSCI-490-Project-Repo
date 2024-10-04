@@ -29,17 +29,17 @@ SINO                (?i:sino)
 POR                 (?i:por)
 EN                  (?i:en)
 MIENTRAS            (?i:mientras)
-PARA                (?i:para)
-CONTINUA            (?i:continua)
-REGRESA             (?i:regresa)
+PARAR               (?i:parar)
+CONTINUAR           (?i:continuar)
+REGRESAR            (?i:regresar)
 
 IDENTIFIER          [a-zA-Z][a-zA-Z0-9_]*
 
 INTEGER             [0-9]+
 DECIMAL             [0-9]+(\.[0-9]+)
 
-CHARACTER           \'[ -~]\'|\'\\[nftrbv]\'
-STRING              \"[ -~]*\"
+CHARACTER           \'[^\']\'
+STRING              \"[^\"]*\"
 
 SINGLE_LINE         \#\#.*
 
@@ -69,9 +69,9 @@ WHITESPACE          [\ \f\r\t\v]+
 {POR}               { return POR; }
 {EN}                { return EN; }
 {MIENTRAS}          { return MIENTRAS; }
-{PARA}              { return PARA; }
-{CONTINUA}          { return CONTINUA; }
-{REGRESA}           { return REGRESA; }
+{PARAR}             { return PARAR; }
+{CONTINUAR}         { return CONTINUAR; }
+{REGRESAR}          { return REGRESAR; }
 
 "+"                 { yylval.val.integer = OP_ADD; return ADD; }
 "-"                 { yylval.val.integer = OP_SUB; return SUB; }
@@ -109,7 +109,10 @@ WHITESPACE          [\ \f\r\t\v]+
 "&"                 { return AMPERSAND; }
 
 {IDENTIFIER}        {
-                        insert(yytext, strlen(yytext), UNDEF, yylineno);
+                        if (lookup(yytext) == NULL) {
+                            insert(strdup(yytext), strlen(yytext), UNDEF, yylineno);
+                        }
+                        
                         yylval.item = lookup(yytext);
                         return IDENTIFIER;
                     }
@@ -117,7 +120,7 @@ WHITESPACE          [\ \f\r\t\v]+
 {INTEGER}           { yylval.val.integer = atoi(yytext); return INTEGER; }
 {DECIMAL}           { yylval.val.real = atof(yytext); return DECIMAL; }
 {CHARACTER}         { yylval.val.character = yytext[1]; return CHARACTER; }
-{STRING}            { yylval.val.string = strdup(yytext); return STRING; }
+{STRING}            { addToMessages(yytext); yylval.val.string = strdup(yytext); return STRING; }
 
 \n                  { yylineno++; }
 {WHITESPACE}        { }
