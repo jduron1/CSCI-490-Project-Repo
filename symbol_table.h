@@ -63,7 +63,6 @@ typedef struct RevisitQueueStruct {
 
 static StorageNode** table;
 static RevisitQueue* queue;
-static char** messages;
 
 void initSymbolTable();
 unsigned int hash(const char* key);
@@ -80,7 +79,6 @@ void pushToQueue(StorageNode*, char*, int);
 RevisitQueue* searchQueue(const char*);
 RevisitQueue* searchPrevQueue(const char*);
 int revisit(const char*);
-void addToMessages(const char*);
 void printSymbolTable(FILE*);
 void printRevisitQueue(FILE*);
 

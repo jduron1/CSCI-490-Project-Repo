@@ -349,20 +349,6 @@ int revisit(const char* name) {
     return 0;
 }
 
-void addToMessages(const char* msg) {
-    if (msg_count == 0) {
-        messages = (char**)malloc(sizeof(char*));
-    } else {
-        messages = (char**)realloc(messages, (msg_count + 1) * sizeof(char*));
-    }
-
-    messages[msg_count] = (char*)malloc(strlen(msg) + 1);
-
-    strcpy(messages[msg_count], msg);
-
-    msg_count++;
-}
-
 void printSymbolTable(FILE* of) {
     fprintf(of, "------------ -------------- ------ ------------\n");
     fprintf(of, "Name         Type           Scope  Line Numbers\n");
