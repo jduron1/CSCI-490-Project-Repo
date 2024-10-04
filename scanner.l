@@ -120,7 +120,7 @@ WHITESPACE          [\ \f\r\t\v]+
 {INTEGER}           { yylval.val.integer = atoi(yytext); return INTEGER; }
 {DECIMAL}           { yylval.val.real = atof(yytext); return DECIMAL; }
 {CHARACTER}         { yylval.val.character = yytext[1]; return CHARACTER; }
-{STRING}            { addToMessages(yytext); yylval.val.string = strdup(yytext); return STRING; }
+{STRING}            { yylval.val.string = strdup(yytext); return STRING; }
 
 \n                  { yylineno++; }
 {WHITESPACE}        { }
