@@ -1,12 +1,12 @@
 %{
     #include "semantics.c"
-	#include "symbol_table.c"
+    #include "symbol_table.c"
     #include "code_generation.c"
-	#include "ast.h"
-	#include "ast.c"
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
+    #include "ast.h"
+    #include "ast.c"
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
 
     extern char* yytext;
     extern int yylineno;
