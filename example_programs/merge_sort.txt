@@ -1,0 +1,83 @@
+func merge(ent arr[], ent l, ent m, ent r) -> vacio {
+    ent i, j, k, idx;
+    ent n1, n2;
+    ent L[100], R[50];
+
+    n1 = m - l + 1;
+    n2 = r - m;
+
+    por i en 0...n1 - 1 {
+        L[i] = arr[l + i];
+    }
+
+    por j en 0...n2 - 1 {
+        idx = m + 1 + j;
+        R[j] = arr[idx];
+    }
+
+    i = 0;
+    j = 0;
+    k = l;
+
+    mientras i < n1 && j < n2 {
+        si L[i] <= R[j] {
+            arr[k] = L[i];
+            i += 1;
+        } sino {
+            arr[k] = R[j];
+            j += 1;
+        }
+        k += 1;
+    }
+
+    mientras i < n1 {
+        arr[k] = L[i];
+        i += 1;
+        k += 1;
+    }
+
+    mientras j < n2 {
+        arr[k] = R[j];
+        j += 1;
+        k += 1;
+    }
+}
+
+func mergeSort(ent arr[], ent l, ent r) -> vacio {
+    ent m;
+
+    si l < r {
+        m = l + (r - l) / 2;
+
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+
+        merge(arr, l, m, r);
+    }
+}
+
+func imprimirLista(ent arr[], ent n) -> vacio {
+    ent i;
+
+    por i en 0...n - 1 {
+        imprimir(arr[i], " ");
+    }
+
+    imprimir("\n");
+}
+
+func principal() -> ent {
+    ent arr[] = {12, 11, 13, 5, 6, 7};
+    ent arr_size;
+    arr_size = 6;
+
+    imprimir("Lista original: \n");
+    imprimirLista(arr, arr_size);
+
+    mergeSort(arr, 0, arr_size - 1);
+
+    imprimir("\nLista ordenada: \n");
+    imprimirLista(arr, arr_size);
+
+    regresar 0;
+}

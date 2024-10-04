@@ -1,0 +1,41 @@
+func binarySearch(ent arr[], ent size, ent key) -> ent {
+    ent low, high, mid, res;
+
+    low = 0;
+    high = size - 1;
+    res = -1;
+
+    mientras low <= high {
+        mid = low + (high - low) / 2;
+
+        si arr[mid] == key {
+            res = mid;
+            parar;
+        }
+        
+        si arr[mid] < key {
+            low = mid + 1;
+        } sino {
+            high = mid - 1;
+        }
+    }
+
+    regresar res;
+}
+
+func principal() -> ent {
+    ent array[] = {2, 3, 4, 10, 40}, size, key, res;
+
+    size = 5;
+    key = 10;
+
+    res = binarySearch(array, size, key);
+
+    si res == -1 {
+        imprimir("Elemento no encontrado\n");
+    } sino {
+        imprimir("Elemento encontrado en la posicion ", res, "\n");
+    }
+
+    regresar 0;
+}

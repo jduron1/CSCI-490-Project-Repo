@@ -1,0 +1,35 @@
+func sieveOfEratosthenes(ent n) -> vacio {
+    bool primes[n + 1];
+    ent i, j, k;
+
+    por j en 0...n {
+        primes[j] = cierto;
+    }
+
+    k = 2;
+    mientras k * k <= n {
+        si primes[k] == cierto {
+            j = k * k;
+
+            mientras j <= n {
+                primes[j] = falso;
+                j += k;
+            }
+        }
+        k += 1;
+    }
+
+    por i en 2...n {
+        si primes[i] == cierto {
+            imprimir(i, " ");
+        }
+    }
+
+    imprimir("\n");
+}
+
+func principal() -> ent {
+    sieveOfEratosthenes(100);
+
+    regresar 0;
+}
