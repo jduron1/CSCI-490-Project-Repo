@@ -8,8 +8,6 @@
 static int cur_scope = 0;
 static int declared = 0;
 static int function_declared = 0;
-static int msg_count = 0;
-extern int yylineno;
 
 void initSymbolTable() {
     table = (StorageNode**)malloc(SIZE * sizeof(StorageNode*));
@@ -90,7 +88,7 @@ void insert(const char* name, int len, int type, int line_no) {
             lines -> next -> next = NULL;
         } else {
             if (node -> scope == cur_scope) {
-                fprintf(stderr, "Redefinition of %s at line %d.\n", name, yylineno);
+                fprintf(stderr, "Redefinition of %s at line %d.\n", name, node -> lines -> line_no);
                 exit(1);
             } else if (function_declared) {
                 Referenced* lines = node -> lines;
@@ -170,44 +168,6 @@ Argument defArg(int arg_type, int storage_type, const char* arg_name, int pass) 
     return arg;
 }
 
-int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *args) {
-    StorageNode* node = lookup(name);
-
-    if (node != NULL) {
-        if (node -> storage_type == UNDEF) {
-            node -> storage_type = FUNCTION_TYPE;
-            node -> inferred_type = ret_type;
-            node -> arg_count = arg_count;
-            node -> args = args;
-
-            return 0;
-        } else {
-            fprintf(stderr, "Redeclaration of function %s at line %d.\n", name, yylineno);
-            exit(1);
-        }
-    }
-}
-
-int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_count) {
-    StorageNode* node = lookup(name);
-
-    for (int i = 0; i < call_count; i++) {
-        if (node -> arg_count != arg_count[i]) {
-            fprintf(stderr, "Function %s called with incorrect number of arguments at line %d.\n", name, yylineno);
-            exit(1);
-        }
-
-        for (int j = 0; j < arg_count[i]; j++) {
-            int type_1 = node -> args[j].arg_type;
-            int type_2 = arg_types[i][j];
-
-            getResultType(type_1, type_2, NONE);
-        }
-    }
-
-    return 0;
-}
-
 void hideScope() {
     StorageNode* node;
 
@@ -228,125 +188,6 @@ void hideScope() {
 
 void incrScope() {
     cur_scope++;
-}
-
-void pushToQueue(StorageNode* entry, char* name, int type) {
-    RevisitQueue* q;
-
-    if(queue == NULL) {
-        q = (RevisitQueue*)malloc(sizeof(RevisitQueue));
-
-        q -> entry = entry;
-        q -> storage_name = name;
-        q -> revisit_type = type;
-        q -> next = NULL;
-
-        if (type == ARG_CHECK) {
-            q -> call_count = 0;
-        } else if (type == ASSIGN_CHECK) {
-            q -> assign_count = 0;
-        }
-
-        queue = q;
-    } else {
-        q = queue;
-
-        while (q -> next != NULL) {
-            q = q -> next;
-        }
-
-        q -> next = (RevisitQueue*)malloc(sizeof(RevisitQueue));
-
-        q -> next -> entry = entry;
-        q -> next -> storage_name = name;
-        q -> next -> revisit_type = type;
-        q -> next -> next = NULL;
-
-        if (type == ARG_CHECK) {
-            q -> next -> call_count = 0;
-        } else if (type == ASSIGN_CHECK) {
-            q -> next -> assign_count = 0;
-        }
-    }		
-}
-
-RevisitQueue* searchQueue(const char* name) {
-    RevisitQueue* q = queue;
-
-    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
-        q = q -> next;
-    }
-
-    return q;
-}
-
-RevisitQueue* searchPrevQueue(const char* name) {
-    if (queue == NULL) {
-        return NULL;
-    }
-
-    if (strcmp(queue -> storage_name, name) == 0) {
-        return NULL;
-    }
-
-    RevisitQueue* q = queue;
-
-    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
-        q = q -> next;
-    }
-
-    return q;
-}
-
-int revisit(const char* name) {
-    RevisitQueue* q = searchQueue(name);
-
-    if (q == NULL) {
-        return -1;
-    }
-
-    switch (q -> revisit_type) {
-        case ARG_CHECK: {
-            if (!funcArgCheck(name, q -> call_count, q -> arg_types, q -> arg_count)) {
-                printf("Function %s called with correct number of arguments.\n", name);
-            }
-
-            RevisitQueue* prev = searchPrevQueue(name);
-
-            if (prev == NULL) {
-                queue = queue -> next;
-            } else {
-                prev -> next = prev -> next -> next;
-            }
-
-            break;
-        }
-
-        case ASSIGN_CHECK: {
-            int type_1 = getDataType(q -> entry -> storage_name);
-
-            for (int i = 0; i < q -> assign_count; i++) {
-                int type_2 = getExpressionType(q -> nodes[i]);
-
-                getResultType(type_1, type_2, NONE);
-            }
-
-            RevisitQueue* prev = searchPrevQueue(name);
-
-            if (prev == NULL) {
-                queue = queue -> next;
-            } else {
-                prev -> next = prev -> next -> next;
-            }
-
-            break;
-        }
-
-        default:
-            break;
-    }
-
-    return 0;
 }
 
 void printSymbolTable(FILE* of) {
@@ -478,28 +319,5 @@ void printSymbolTable(FILE* of) {
                 node = node -> next;
             }
         }
-    }
-}
-
-void printRevisitQueue(FILE* of) {
-    RevisitQueue* q = queue;
-    
-    fprintf(of, "------------ -------------\n");
-    fprintf(of, "Identifier   Revisit Type\n");
-    fprintf(of, "------------ -------------\n");
-
-    while (q != NULL) {
-        fprintf(of, "%-13s", q -> storage_name);
-
-        if (q -> revisit_type == ARG_CHECK) {
-            fprintf(of, "%s", "Argument check ");
-            fprintf(of, "for %d function calls.", q -> call_count);
-        } else if (q -> revisit_type == ASSIGN_CHECK) {
-            fprintf(of, "%s", "Assignment check ");
-            fprintf(of, "for %d assignments.", q -> assign_count);
-        }
-
-        fprintf(of, "\n");
-        q = q -> next;	
     }
 }

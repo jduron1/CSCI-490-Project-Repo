@@ -28,6 +28,6 @@ void generateFuncDeclCode(FILE*, ASTNode*);
 void generateDeclArgsCode(FILE*, ASTNode*);
 void generateReturnCode(FILE*, ASTNode*);
 void generateParenCode(FILE*, ASTNode*);
-void findNodeType(ASTNode*);
+void findNodeType(FILE*, ASTNode*);
 
 #endif
