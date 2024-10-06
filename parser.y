@@ -17,7 +17,7 @@
     void yyerror();
 
     ASTNode* root;
-    void freeAST(ASTNode*);
+    ASTFuncDecl* temp_decl;
 
     void addToNames(StorageNode*);
     StorageNode** names;
@@ -30,8 +30,6 @@
     void addElseIf(ASTNode*);
     ASTNode** else_ifs;
     int else_if_count = 0;
-
-    ASTFuncDecl* temp_decl;
 
     int check_size = 0;
 %}
@@ -100,14 +98,8 @@
 
 program: program_functions
             {
-                root = (ASTNode*)$1;
+                root = (ASTNode*)$$;
                 traverseAST(root);
-
-                ASTFuncDeclarations* temp = (ASTFuncDeclarations*)$$;
-
-                for (int i = 0; i < temp -> func_declaration_count; i++) {
-                    generateFuncDeclCode(of, temp -> func_declarations[i]);
-                }
             }
        ;
 
@@ -1161,15 +1153,6 @@ int main(int argc, char* argv[]) {
 
     int length = strlen(argv[1]) + 1;
 
-    of = fopen("output.cpp", "w");
-    if (of == NULL) {
-        fprintf(stderr, "Error opening output file.\n");
-        exit(1);
-    }
-
-    fprintf(of, "#include <bits/stdc++.h>\n");
-    fprintf(of, "using namespace std;\n\n");
-
     initSymbolTable();
 
     queue = NULL;
@@ -1186,46 +1169,43 @@ int main(int argc, char* argv[]) {
 
     printf("Syntax check: %s\n", flag == 0 ? "successful." : "failed.");
 
-    RevisitQueue* q = searchPrevQueue("imprimir");
-    if (q == NULL) {
-        if (queue != NULL) {
-            queue = queue -> next;
-        }
-    } else {
-        if (q -> next != NULL) {
-            q -> next = q -> next -> next;
-        }
-    }
+    do {
+        RevisitQueue* q = searchPrevQueue(queue -> storage_name);
 
-    q = searchPrevQueue("leer");
-    if (q == NULL) {
-        if (queue != NULL) {
-            queue = queue -> next;
-        }
-    } else {
-        if (q -> next != NULL) {
-            q -> next = q -> next -> next;
-        }
-    }
-
-    if (queue != NULL) {
-        RevisitQueue* cur = queue;
-
-        while (cur != NULL) {
-            if (cur -> revisit_type == ASSIGN_CHECK) {
-                revisit(cur -> storage_name);
+        if (q == NULL) {
+            if (queue != NULL) {
+                queue = queue -> next;
             }
-
-            cur = cur -> next;
+        } else {
+            RevisitQueue* temp = q -> next;
+            q -> next = q -> next -> next;
+            free(temp);
         }
+    } while (queue != NULL);
+
+    while (queue != NULL) {
+        if (queue -> revisit_type == ASSIGN_CHECK) {
+            revisit(queue -> storage_name);
+        }
+
+        RevisitQueue* temp = queue;
+        queue = queue -> next;
+        free(temp);
     }
 
     if (queue != NULL) {
         printf("Unchecked item in the revisit queue.\n");
     }
 
-    funcDeclaration("imprimir", VOID_TYPE, 1, NULL);
-    funcDeclaration("leer", VOID_TYPE, 1, NULL);
+    ASTFuncDeclarations* temp = (ASTFuncDeclarations*)root;
+
+    if (temp != NULL) {
+        for (int i = 0; i < temp -> func_declaration_count; i++) {
+            ASTFuncDecl* temp2 = (ASTFuncDecl*)temp -> func_declarations[i];
+
+            funcDeclaration(temp2 -> entry -> storage_name, temp2 -> ret_type, temp2 -> entry -> arg_count, temp2 -> entry -> args);
+        }
+    }
 
     yyout = fopen("table.out", "w");
     if (yyout == NULL) {
@@ -1242,6 +1222,18 @@ int main(int argc, char* argv[]) {
     }
 
     printRevisitQueue(yyout);
+
+    yyout = fopen("output.cpp", "w");
+    if (yyout == NULL) {
+        fprintf(stderr, "Error opening output file.\n");
+        exit(1);
+    }
+
+    fprintf(yyout, "#include <bits/stdc++.h>\n");
+    fprintf(yyout, "using namespace std;\n\n");
+
+    findNodeType(yyout, root);
+
     fclose(yyout);
 
     return flag;

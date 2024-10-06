@@ -880,7 +880,7 @@ void printASTNode(ASTNode* node) {
             break;
 
         default:
-            fprintf(stderr, "Error: unrecognized node type %d at line %d.\n", node -> type, yylineno);
+            fprintf(stderr, "Error: unrecognized node type %d.\n", node -> type);
             exit(1);
             break;
     }

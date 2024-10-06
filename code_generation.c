@@ -1,6 +1,5 @@
 #include "code_generation.h"
 
-FILE* of;
 static int for_flag = 0;
 static int assign_flag = 0;
 static int out_flag = 0;
@@ -73,34 +72,34 @@ void generateArithCode(FILE* of, ASTNode* node) {
 
     switch (arith_node -> op) {
         case OP_ADD:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " + ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         case OP_SUB:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " - ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         case OP_MUL:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " * ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         case OP_DIV:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " / ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         case OP_MOD:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " %% ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         case OP_EXP:
-            findNodeType(arith_node -> left);
+            findNodeType(of, arith_node -> left);
             fprintf(of, " ^ ");
-            findNodeType(arith_node -> right);
+            findNodeType(of, arith_node -> right);
             break;
         default:
             break;
@@ -124,18 +123,18 @@ void generateBoolCode(FILE* of, ASTNode* node) {
 
     if (bool_node -> op == OP_NOT) {
         fprintf(of, "!");
-        findNodeType(bool_node -> left);
+        findNodeType(of, bool_node -> left);
     } else {
         switch (bool_node -> op) {
             case OP_OR:
-                findNodeType(bool_node -> left);
+                findNodeType(of, bool_node -> left);
                 fprintf(of, " || ");
-                findNodeType(bool_node -> right);
+                findNodeType(of, bool_node -> right);
                 break;
             case OP_AND:
-                findNodeType(bool_node -> left);
+                findNodeType(of, bool_node -> left);
                 fprintf(of, " && ");
-                findNodeType(bool_node -> right);
+                findNodeType(of, bool_node -> right);
                 break;
             default:
                 break;
@@ -148,24 +147,24 @@ void generateRelCode(FILE* of, ASTNode* node) {
 
     switch (rel_node -> op) {
         case OP_GREAT:
-            findNodeType(rel_node -> left);
+            findNodeType(of, rel_node -> left);
             fprintf(of, " > ");
-            findNodeType(rel_node -> right);
+            findNodeType(of, rel_node -> right);
             break;
         case OP_LESS:
-            findNodeType(rel_node -> left);
+            findNodeType(of, rel_node -> left);
             fprintf(of, " < ");
-            findNodeType(rel_node -> right);
+            findNodeType(of, rel_node -> right);
             break;
         case OP_GE:
-            findNodeType(rel_node -> left);
+            findNodeType(of, rel_node -> left);
             fprintf(of, " >= ");
-            findNodeType(rel_node -> right);
+            findNodeType(of, rel_node -> right);
             break;
         case OP_LE:
-            findNodeType(rel_node -> left);
+            findNodeType(of, rel_node -> left);
             fprintf(of, " <= ");
-            findNodeType(rel_node -> right);
+            findNodeType(of, rel_node -> right);
             break;
         default:
             break;
@@ -177,14 +176,14 @@ void generateEquCode(FILE* of, ASTNode* node) {
 
     switch (equ_node -> op) {
         case OP_EQUAL:
-            findNodeType(equ_node -> left);
+            findNodeType(of, equ_node -> left);
             fprintf(of, " == ");
-            findNodeType(equ_node -> right);
+            findNodeType(of, equ_node -> right);
             break;
         case OP_NOT_EQUAL:
-            findNodeType(equ_node -> left);
+            findNodeType(of, equ_node -> left);
             fprintf(of, " != ");
-            findNodeType(equ_node -> right);
+            findNodeType(of, equ_node -> right);
             break;
         default:
             break;
@@ -525,7 +524,7 @@ void generateArithAssignCode(FILE* of, ASTNode* node) {
             break;
     }
 
-    findNodeType(arith_assign_node -> assign_val);
+    findNodeType(of, arith_assign_node -> assign_val);
 
     if (for_flag) {
         fprintf(of, "; ");
@@ -631,7 +630,7 @@ void generateFuncDeclCode(FILE* of, ASTNode* node) {
         ASTReturn* return_node = (ASTReturn*)func_decl_node -> return_node;
 
         fprintf(of, "return ");
-        findNodeType(return_node -> ret_val);
+        findNodeType(of, return_node -> ret_val);
         fprintf(of, ";\n");
     }
 
@@ -654,7 +653,7 @@ void generateFuncCallCode(FILE* of, ASTNode* node) {
     }
 
     for (int i = 0; i < func_call_node -> arg_count; i++) {
-        findNodeType(func_call_node -> args[i]);
+        findNodeType(of, func_call_node -> args[i]);
 
         if (i < func_call_node -> arg_count - 1 && out_flag) {
             fprintf(of, " << ");
@@ -681,11 +680,11 @@ void generateParenCode(FILE* of, ASTNode* node) {
     ASTParen* paren_node = (ASTParen*)node;
 
     fprintf(of, "(");
-    findNodeType(paren_node -> node);
+    findNodeType(of, paren_node -> node);
     fprintf(of, ")");
 }
 
-void findNodeType(ASTNode* node) {
+void findNodeType(FILE* of, ASTNode* node) {
     switch (node -> type) {
         case ARITH_NODE:
             generateArithCode(of, node);
@@ -711,6 +710,11 @@ void findNodeType(ASTNode* node) {
         case FUNC_CALL:
             func_level++;
             generateFuncCallCode(of, node);
+            break;
+        case FUNC_DECLS:
+            for (int i = 0; i < ((ASTFuncDeclarations*)node) -> func_declaration_count; i++) {
+                generateFuncDeclCode(of, ((ASTFuncDeclarations*)node) -> func_declarations[i]);
+            }
             break;
         case PAREN_NODE:
             generateParenCode(of, node);

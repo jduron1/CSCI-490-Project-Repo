@@ -49,20 +49,7 @@ typedef struct StorageNodeStruct {
     struct StorageNodeStruct* next;
 } StorageNode;
 
-typedef struct RevisitQueueStruct {
-    StorageNode* entry;
-    char* storage_name;
-    int revisit_type;
-    int** arg_types;
-    int* arg_count;
-    int call_count;
-    void** nodes;
-    int assign_count;
-    struct RevisitQueueStruct* next;
-} RevisitQueue;
-
 static StorageNode** table;
-static RevisitQueue* queue;
 
 void initSymbolTable();
 unsigned int hash(const char* key);
@@ -71,15 +58,8 @@ StorageNode* lookup(const char*);
 void setDataType(const char*, int, int);
 int getDataType(const char*);
 Argument defArg(int, int, const char*, int);
-int funcDeclaration(const char*, int, int, Argument*);
-int funcArgCheck(const char*, int, int**, int*);
 void hideScope();
 void incrScope();
-void pushToQueue(StorageNode*, char*, int);
-RevisitQueue* searchQueue(const char*);
-RevisitQueue* searchPrevQueue(const char*);
-int revisit(const char*);
 void printSymbolTable(FILE*);
-void printRevisitQueue(FILE*);
 
 #endif
