@@ -1,7 +1,5 @@
 %{
 
-/* C declarations */
-
 #include <stdio.h>
 #include <string.h>
 
@@ -10,8 +8,6 @@ extern int yylex();
 void yyerror(const char *s);
 
 %}
-
-/* Definitions */
 
 %union {
     char* string;
@@ -62,8 +58,6 @@ void yyerror(const char *s);
 %left ESTA EN
 
 %%
-
-/* Productions */
 
 program: statements { printf("Program\n"); };
 
@@ -172,8 +166,6 @@ literal: CHARACTER { printf("Character: %c\n", $1); }
       ;
 
 %%
-
-/* C code */
 
 void yyerror(const char *s) {
     fprintf(stderr, "%s\n", s);
