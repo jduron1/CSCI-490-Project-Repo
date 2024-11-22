@@ -2,14 +2,7 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include "symbol_table.h"
-    #include "semantics.h"
-    #include "ast.h"
     #include "parser.tab.h"
-
-    extern int yylineno;
-    extern FILE *yyin;
-    extern FILE *yyout;
 %}
 
 %option noyywrap
@@ -36,7 +29,7 @@ REGRESAR            (?i:regresar)
 IDENTIFIER          [a-zA-Z][a-zA-Z0-9_]*
 
 INTEGER             [0-9]+
-DECIMAL             [0-9]+(\.[0-9]+)
+FLOAT               [0-9]+(\.[0-9]+)
 
 CHARACTER           \'[^\']\'
 STRING              \"[^\"]*\"
@@ -62,8 +55,8 @@ WHITESPACE          [\ \f\r\t\v]+
 {CADENA}            { return CADENA; }
 {VACIO}             { return VACIO; }
 {FUNCION}           { return FUNCION; }
-{CIERTO}            { yylval.val.boolean = "true"; return CIERTO; }
-{FALSO}             { yylval.val.boolean = "false"; return FALSO; }
+{CIERTO}            { return CIERTO; }
+{FALSO}             { return FALSO; }
 {SI}                { return SI; }
 {SINO}              { return SINO; }
 {POR}               { return POR; }
@@ -73,27 +66,27 @@ WHITESPACE          [\ \f\r\t\v]+
 {CONTINUAR}         { return CONTINUAR; }
 {REGRESAR}          { return REGRESAR; }
 
-"+"                 { yylval.val.integer = OP_ADD; return ADD; }
-"-"                 { yylval.val.integer = OP_SUB; return SUB; }
-"*"                 { yylval.val.integer = OP_MUL; return MUL; }
-"/"                 { yylval.val.integer = OP_DIV; return DIV; }
-"%"                 { yylval.val.integer = OP_MOD; return MOD; }
-"^"                 { yylval.val.integer = OP_EXP; return EXP; }
-"+="                { yylval.val.integer = OP_ADD_ASSIGN; return ADD_ASSIGN; }
-"-="                { yylval.val.integer = OP_SUB_ASSIGN; return SUB_ASSIGN; }
-"*="                { yylval.val.integer = OP_MUL_ASSIGN; return MUL_ASSIGN; }
-"/="                { yylval.val.integer = OP_DIV_ASSIGN; return DIV_ASSIGN; }
-"%="                { yylval.val.integer = OP_MOD_ASSIGN; return MOD_ASSIGN; }
-"^="                { yylval.val.integer = OP_EXP_ASSIGN; return EXP_ASSIGN; }
-"||"                { yylval.val.integer = OP_OR; return OR; }
-"&&"                { yylval.val.integer = OP_AND; return AND; }
-"!"                 { yylval.val.integer = OP_NOT; return NOT; }
-"=="                { yylval.val.integer = OP_EQUAL; return EQ; }
-"!="                { yylval.val.integer = OP_NOT_EQUAL; return NE; }
-"<"                 { yylval.val.integer = OP_LESS; return LESS; }
-"<="                { yylval.val.integer = OP_LE; return LE; }
-">"                 { yylval.val.integer = OP_GREAT; return GREAT; }
-">="                { yylval.val.integer = OP_GE; return GE; }
+"+"                 { return ADD; }
+"-"                 { return SUB; }
+"*"                 { return MUL; }
+"/"                 { return DIV; }
+"%"                 { return MOD; }
+"^"                 { return EXP; }
+"+="                { return ADD_ASSIGN; }
+"-="                { return SUB_ASSIGN; }
+"*="                { return MUL_ASSIGN; }
+"/="                { return DIV_ASSIGN; }
+"%="                { return MOD_ASSIGN; }
+"^="                { return EXP_ASSIGN; }
+"||"                { return OR; }
+"&&"                { return AND; }
+"!"                 { return NOT; }
+"=="                { return EQ; }
+"!="                { return NE; }
+"<"                 { return LESS; }
+"<="                { return LE; }
+">"                 { return GREAT; }
+">="                { return GE; }
 "->"                { return ARROW; }
 "..."               { return ELLIPSIS; }
 
@@ -108,19 +101,12 @@ WHITESPACE          [\ \f\r\t\v]+
 "="                 { return ASSIGN; }
 "&"                 { return AMPERSAND; }
 
-{IDENTIFIER}        {
-                        if (lookup(yytext) == NULL) {
-                            insert(strdup(yytext), strlen(yytext), UNDEF, yylineno);
-                        }
-                        
-                        yylval.item = lookup(yytext);
-                        return IDENTIFIER;
-                    }
+{IDENTIFIER}        { printf("Identifier: %s\n", yytext); return IDENTIFIER; }
 
-{INTEGER}           { yylval.val.integer = atoi(yytext); return INTEGER; }
-{DECIMAL}           { yylval.val.real = atof(yytext); return DECIMAL; }
-{CHARACTER}         { yylval.val.character = yytext[1]; return CHARACTER; }
-{STRING}            { yylval.val.string = strdup(yytext); return STRING; }
+{INTEGER}           { printf("Integer: %s\n", yytext); return INTEGER; }
+{FLOAT}             { printf("Float: %s\n", yytext); return FLOAT; }
+{CHARACTER}         { printf("Character: %s\n", yytext); return CHARACTER; }
+{STRING}            { printf("String: %s\n", yytext); return STRING; }
 
 \n                  { yylineno++; }
 {WHITESPACE}        { }

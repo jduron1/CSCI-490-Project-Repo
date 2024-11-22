@@ -4,19 +4,20 @@
 #define SIZE 211
 #define MAX_TOKEN_LEN 40
 
-#define BY_VALUE 1
-#define BY_REFER 2
+#include <stdio.h>
+#include "value_type.h"
 
-#define ARG_CHECK 1
-#define ASSIGN_CHECK 2
+typedef struct ASTNodeStruct ASTNode;
 
-typedef union ValueTypeUnion {
-    long long int integer;
-    double real;
-    char character;
-    char* string;
-    char* boolean;
-} ValueType;
+typedef enum PassTypeEnum {
+    BY_VALUE,
+    BY_REFER
+} PassType;
+
+typedef enum CheckTypeEnum {
+    ARG_CHECK,
+    ASSIGN_CHECK
+} CheckType;
 
 typedef struct ArgumentStruct {
     int arg_type;
@@ -28,38 +29,39 @@ typedef struct ArgumentStruct {
 
 typedef struct ReferencedStruct { 
     int line_no;
-    struct ReferencedStruct* next;
+    struct ReferencedStruct *next;
 } Referenced;
 
 typedef struct StorageNodeStruct {
     char storage_name[MAX_TOKEN_LEN];
     int storage_size;
     int scope;
-    Referenced* lines;
+    Referenced *lines;
     ValueType val;
     int storage_type;
     int inferred_type;
-    ValueType* vals;
-    char* array_size;
-    char** indices;
+    ValueType *vals;
+    ASTNode *assigned;
+    ASTNode *array_size;
+    char **indices;
     int index_count;
     int cur_idx;
-    Argument* args;
+    Argument *args;
     int arg_count;
-    struct StorageNodeStruct* next;
+    struct StorageNodeStruct *next;
 } StorageNode;
 
-static StorageNode** table;
+static StorageNode **table;
 
 void initSymbolTable();
-unsigned int hash(const char* key);
-void insert(const char*, int, int, int);
-StorageNode* lookup(const char*);
-void setDataType(const char*, int, int);
-int getDataType(const char*);
-Argument defArg(int, int, const char*, int);
+unsigned int hash(char * key);
+void insert(char *, int, int, int);
+StorageNode *lookup(char *);
+void setDataType(char *, int, int);
+int getDataType(char *);
+Argument defineArg(int, int, char *, int);
 void hideScope();
 void incrScope();
-void printSymbolTable(FILE*);
+void printSymbolTable(FILE *);
 
-#endif
+#endif // SYMBOL_TABLE_H

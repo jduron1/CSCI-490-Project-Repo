@@ -1,23 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "semantics.h"
 #include "symbol_table.h"
-#include "ast.h"
+#include "semantics.h"
 
 static int cur_scope = 0;
 static int declared = 0;
 static int function_declared = 0;
 
 void initSymbolTable() {
-    table = (StorageNode**)malloc(SIZE * sizeof(StorageNode*));
+    table = (StorageNode **)malloc(SIZE * sizeof(StorageNode *));
 
-    for(int i = 0; i < SIZE; i++) {
+    for (int i = 0; i < SIZE; i++) {
         table[i] = NULL;
     }
 }
 
-unsigned int hash(const char* key) {
+unsigned int hash(char *key) {
     unsigned int hash_val = 0;
 
     while (*key != '\0') {
@@ -29,92 +28,91 @@ unsigned int hash(const char* key) {
     return hash_val % SIZE;
 }
 
-void insert(const char* name, int len, int type, int line_no) {
+void insert(char *name, int length, int type, int line_no) {
     unsigned int hash_val = hash(name);
-    StorageNode* node = table[hash_val];
+    StorageNode *node = table[hash_val];
 
-    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
+    while ((node != NULL) && (strncmp(name, node -> storage_name, length) != 0)) {
         node = node -> next;
     }
 
     if (node == NULL) {
         if (declared) {
-            node = (StorageNode*)malloc(sizeof(StorageNode));
+            node = (StorageNode *)malloc(sizeof(StorageNode));
 
-            strncpy(node -> storage_name, name, len);
-            node -> storage_size = len;
+            strncpy(node -> storage_name, name, length);
+            node -> storage_size = length;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced *)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
             node -> array_size = NULL;
             node -> indices = NULL;
             node -> index_count = 0;
             node -> cur_idx = 0;
-            
+
             node -> next = table[hash_val];
-            table[hash_val] = node; 
+            table[hash_val] = node;
         } else {
-            node = (StorageNode*)malloc(sizeof(StorageNode));
-
-            strncpy(node -> storage_name, name, len);
-            node -> storage_size = len;
+            node = (StorageNode *)malloc(sizeof(StorageNode));
+            strncpy(node -> storage_name, name, length);
+            node -> storage_size = length;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced *)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
             node -> array_size = NULL;
             node -> indices = NULL;
             node -> index_count = 0;
             node -> cur_idx = 0;
-            
+
             node -> next = table[hash_val];
             table[hash_val] = node;
 
-            pushToQueue(node, node -> storage_name, ARG_CHECK);
+            pushToQueue(node, name, ARG_CHECK);
         }
     } else {
         if (!declared) {
-            Referenced* lines = node -> lines;
+            Referenced *lines = node -> lines;
 
             while (lines -> next != NULL) {
                 lines = lines -> next;
             }
 
-            lines -> next = (Referenced*)malloc(sizeof(Referenced));
+            lines -> next = (Referenced *)malloc(sizeof(Referenced));
             lines -> next -> line_no = line_no;
             lines -> next -> next = NULL;
         } else {
             if (node -> scope == cur_scope) {
-                fprintf(stderr, "Redefinition of %s at line %d.\n", name, node -> lines -> line_no);
+                fprintf(stderr, "Redeclaration of %s at line %d.\n", name, line_no);
                 exit(1);
             } else if (function_declared) {
-                Referenced* lines = node -> lines;
+                Referenced *lines = node -> lines;
 
                 while (lines -> next != NULL) {
                     lines = lines -> next;
                 }
 
-                lines -> next = (Referenced*)malloc(sizeof(Referenced));
+                lines -> next = (Referenced *)malloc(sizeof(Referenced));
                 lines -> next -> line_no = line_no;
                 lines -> next -> next = NULL;
             } else {
-                node = (StorageNode*)malloc(sizeof(StorageNode));
+                node = (StorageNode *)malloc(sizeof(StorageNode));
 
-                strncpy(node -> storage_name, name, len);
-                node -> storage_size = len;
+                strncpy(node -> storage_name, name, length);
+                node -> storage_size = length;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
-                node -> lines = (Referenced*)malloc(sizeof(Referenced));
+                node -> lines = (Referenced *)malloc(sizeof(Referenced));
                 node -> lines -> line_no = line_no;
                 node -> lines -> next = NULL;
                 node -> array_size = NULL;
                 node -> indices = NULL;
                 node -> index_count = 0;
                 node -> cur_idx = 0;
-                
+
                 node -> next = table[hash_val];
                 table[hash_val] = node;
             }
@@ -122,19 +120,19 @@ void insert(const char* name, int len, int type, int line_no) {
     }
 }
 
-StorageNode* lookup(const char* name) {
+StorageNode *lookup(char *name) {
     unsigned int hash_val = hash(name);
-    StorageNode* node = table[hash_val];
+    StorageNode *node = table[hash_val];
 
-    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
+    while ((node != NULL) && (strncmp(name, node -> storage_name, node -> storage_size) != 0)) {
         node = node -> next;
     }
 
     return node;
 }
 
-void setDataType(const char* name, int storage_type, int inferred_type) {
-    StorageNode* node = lookup(name);
+void setDataType(char *name, int storage_type, int inferred_type) {
+    StorageNode *node = lookup(name);
 
     node -> storage_type = storage_type;
 
@@ -143,8 +141,8 @@ void setDataType(const char* name, int storage_type, int inferred_type) {
     }
 }
 
-int getDataType(const char* name) {
-    StorageNode* node = lookup(name);
+int getDataType(char *name) {
+    StorageNode *node = lookup(name);
 
     if (node != NULL) {
         if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
@@ -157,19 +155,19 @@ int getDataType(const char* name) {
     }
 }
 
-Argument defArg(int arg_type, int storage_type, const char* arg_name, int pass) {
+Argument defineArg(int arg_type, int storage_type, char *arg_name, int pass) {
     Argument arg;
 
     arg.arg_type = arg_type;
     arg.storage_type = storage_type;
-    strcpy(arg.arg_name, arg_name);
+    strncpy(arg.arg_name, arg_name, strlen(arg_name));
     arg.pass = pass;
 
     return arg;
 }
 
 void hideScope() {
-    StorageNode* node;
+    StorageNode *node;
 
     for (int i = 0; i < SIZE; i++) {
         if (table[i] != NULL) {
@@ -190,7 +188,7 @@ void incrScope() {
     cur_scope++;
 }
 
-void printSymbolTable(FILE* of) {
+void printSymbolTable(FILE *of) {
     fprintf(of, "------------ -------------- ------ ------------\n");
     fprintf(of, "Name         Type           Scope  Line Numbers\n");
     fprintf(of, "------------ -------------- ------ ------------\n");

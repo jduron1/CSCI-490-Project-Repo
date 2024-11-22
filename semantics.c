@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "symbol_table.h"
-#include "ast.h"
 #include "semantics.h"
+#include "ast.h"
 
 extern int yylineno;
 
-void pushToQueue(StorageNode* entry, char* name, int type) {
-    RevisitQueue* q;
+void pushToQueue(StorageNode *entry, char *name, int type) {
+    RevisitQueue *q;
 
-    if(queue == NULL) {
-        q = (RevisitQueue*)malloc(sizeof(RevisitQueue));
+    if (queue == NULL) {
+        q = (RevisitQueue *)malloc(sizeof(RevisitQueue));
 
         q -> entry = entry;
         q -> storage_name = name;
@@ -32,7 +31,7 @@ void pushToQueue(StorageNode* entry, char* name, int type) {
             q = q -> next;
         }
 
-        q -> next = (RevisitQueue*)malloc(sizeof(RevisitQueue));
+        q -> next = (RevisitQueue *)malloc(sizeof(RevisitQueue));
 
         q -> next -> entry = entry;
         q -> next -> storage_name = name;
@@ -47,36 +46,36 @@ void pushToQueue(StorageNode* entry, char* name, int type) {
     }		
 }
 
-RevisitQueue* searchQueue(const char* name) {
-    RevisitQueue* q = queue;
+RevisitQueue *searchQueue(char *name) {
+    RevisitQueue *q = queue;
 
-    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
+    while ((q != NULL) && (strncmp(name, q -> storage_name, strlen(name)) != 0)) {
         q = q -> next;
     }
 
     return q;
 }
 
-RevisitQueue* searchPrevQueue(const char* name) {
+RevisitQueue *searchPrevQueue(char *name) {
     if (queue == NULL) {
         return NULL;
     }
 
-    if (strcmp(queue -> storage_name, name) == 0) {
-        return NULL;
+    if (strncmp(queue -> storage_name, name, strlen(name)) == 0) {
+        return queue;
     }
 
-    RevisitQueue* q = queue;
+    RevisitQueue *q = queue;
 
-    while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
+    while ((q -> next != NULL) && (strncmp(name, q -> next -> storage_name, strlen(name)) != 0)) {
         q = q -> next;
     }
 
     return q;
 }
 
-int revisit(const char* name) {
-    RevisitQueue* q = searchQueue(name);
+int revisit(char *name) {
+    RevisitQueue *q = searchQueue(name);
 
     if (q == NULL) {
         return -1;
@@ -90,14 +89,15 @@ int revisit(const char* name) {
                 printf("Function %s called with correct number of arguments.\n", name);
             }
 
-            RevisitQueue* prev = searchPrevQueue(name);
+            RevisitQueue *prev = searchPrevQueue(name);
 
             if (prev == NULL) {
                 queue = queue -> next;
             } else {
-                RevisitQueue* temp = prev -> next;
+                RevisitQueue *temp = prev -> next;
                 prev -> next = prev -> next -> next;
                 free(temp);
+                temp = NULL;
             }
 
             break;
@@ -112,14 +112,15 @@ int revisit(const char* name) {
                 getResultType(type_1, type_2, NONE);
             }
 
-            RevisitQueue* prev = searchPrevQueue(name);
+            RevisitQueue *prev = searchPrevQueue(name);
 
             if (prev == NULL) {
                 queue = queue -> next;
             } else {
-                RevisitQueue* temp = prev -> next;
+                RevisitQueue *temp = prev -> next;
                 prev -> next = prev -> next -> next;
                 free(temp);
+                temp = NULL;
             }
 
             break;
@@ -132,8 +133,8 @@ int revisit(const char* name) {
     return 0;
 }
 
-int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *args) {
-    StorageNode* node = lookup(name);
+int funcDeclaration(char *name, int ret_type, int arg_count, Argument *args) {
+    StorageNode *node = lookup(name);
 
     if (node != NULL) {
         printf("Function %s declared at line %d.\n", name, node -> lines -> line_no);
@@ -152,8 +153,8 @@ int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *arg
     }
 }
 
-int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_count) {
-    StorageNode* node = lookup(name);
+int funcArgCheck(char *name, int call_count, int **arg_types, int *arg_count) {
+    StorageNode *node = lookup(name);
 
     for (int i = 0; i < call_count; i++) {
         if (node -> arg_count != arg_count[i]) {
@@ -170,29 +171,6 @@ int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_cou
     }
 
     return 0;
-}
-
-void printRevisitQueue(FILE* of) {
-    RevisitQueue* q = queue;
-    
-    fprintf(of, "------------ -------------\n");
-    fprintf(of, "Identifier   Revisit Type\n");
-    fprintf(of, "------------ -------------\n");
-
-    while (q != NULL) {
-        fprintf(of, "%-13s", q -> storage_name);
-
-        if (q -> revisit_type == ARG_CHECK) {
-            fprintf(of, "%s", "Argument check ");
-            fprintf(of, "for %d function calls.", q -> call_count);
-        } else if (q -> revisit_type == ASSIGN_CHECK) {
-            fprintf(of, "%s", "Assignment check ");
-            fprintf(of, "for %d assignments.", q -> assign_count);
-        }
-
-        fprintf(of, "\n");
-        q = q -> next;	
-    }
 }
 
 int getResultType(int type_1, int type_2, int op) {
@@ -560,4 +538,27 @@ void typeError(int type_1, int type_2, int op) {
     fprintf(stderr, " in line %d.\n", yylineno);
 
     exit(1);
+}
+
+void printRevisitQueue(FILE *of) {
+    RevisitQueue *q = queue;
+    
+    fprintf(of, "------------ -------------\n");
+    fprintf(of, "Identifier   Revisit Type\n");
+    fprintf(of, "------------ -------------\n");
+
+    while (q != NULL) {
+        fprintf(of, "%-13s", q -> storage_name);
+
+        if (q -> revisit_type == ARG_CHECK) {
+            fprintf(of, "%s", "Argument check ");
+            fprintf(of, "for %d function calls.", q -> call_count);
+        } else if (q -> revisit_type == ASSIGN_CHECK) {
+            fprintf(of, "%s", "Assignment check ");
+            fprintf(of, "for %d assignments.", q -> assign_count);
+        }
+
+        fprintf(of, "\n");
+        q = q -> next;	
+    }
 }
