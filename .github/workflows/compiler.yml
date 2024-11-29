@@ -23,4 +23,4 @@ jobs:
         run: |
           flex scanner.l
           bison -d parser.y
-          gcc lex.yy.c parser.tab.c
+          gcc -lfl lex.yy.c parser.tab.c symbol_table.c semantics.c ast.c code_gen.c
