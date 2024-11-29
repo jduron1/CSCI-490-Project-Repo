@@ -4,19 +4,15 @@
 #include "symbol_table.h"
 #include "semantics.h"
 
-static int cur_scope = 0;
-static int declared = 0;
-static int function_declared = 0;
-
 void initSymbolTable() {
-    table = (StorageNode **)malloc(SIZE * sizeof(StorageNode *));
+    table = (StorageNode **)malloc(SIZE  *sizeof(StorageNode *));
 
-    for (int i = 0; i < SIZE; i++) {
+    for(int i = 0; i < SIZE; i++) {
         table[i] = NULL;
     }
 }
 
-unsigned int hash(char *key) {
+unsigned int hash(const char *key) {
     unsigned int hash_val = 0;
 
     while (*key != '\0') {
@@ -28,11 +24,11 @@ unsigned int hash(char *key) {
     return hash_val % SIZE;
 }
 
-void insert(char *name, int length, int type, int line_no) {
+void insert(const char *name, int len, int type, int line_no) {
     unsigned int hash_val = hash(name);
     StorageNode *node = table[hash_val];
 
-    while ((node != NULL) && (strncmp(name, node -> storage_name, length) != 0)) {
+    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
     }
 
@@ -40,8 +36,8 @@ void insert(char *name, int length, int type, int line_no) {
         if (declared) {
             node = (StorageNode *)malloc(sizeof(StorageNode));
 
-            strncpy(node -> storage_name, name, length);
-            node -> storage_size = length;
+            strncpy(node -> storage_name, name, len);
+            node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
             node -> lines = (Referenced *)malloc(sizeof(Referenced));
@@ -51,13 +47,14 @@ void insert(char *name, int length, int type, int line_no) {
             node -> indices = NULL;
             node -> index_count = 0;
             node -> cur_idx = 0;
-
+            
             node -> next = table[hash_val];
-            table[hash_val] = node;
+            table[hash_val] = node; 
         } else {
             node = (StorageNode *)malloc(sizeof(StorageNode));
-            strncpy(node -> storage_name, name, length);
-            node -> storage_size = length;
+
+            strncpy(node -> storage_name, name, len);
+            node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
             node -> lines = (Referenced *)malloc(sizeof(Referenced));
@@ -67,11 +64,11 @@ void insert(char *name, int length, int type, int line_no) {
             node -> indices = NULL;
             node -> index_count = 0;
             node -> cur_idx = 0;
-
+            
             node -> next = table[hash_val];
             table[hash_val] = node;
 
-            pushToQueue(node, name, ARG_CHECK);
+            pushToQueue(node, node -> storage_name, ARG_CHECK);
         }
     } else {
         if (!declared) {
@@ -86,7 +83,7 @@ void insert(char *name, int length, int type, int line_no) {
             lines -> next -> next = NULL;
         } else {
             if (node -> scope == cur_scope) {
-                fprintf(stderr, "Redeclaration of %s at line %d.\n", name, line_no);
+                fprintf(stderr, "Redefinition of %s at line %d.\n", name, node -> lines -> line_no);
                 exit(1);
             } else if (function_declared) {
                 Referenced *lines = node -> lines;
@@ -101,8 +98,8 @@ void insert(char *name, int length, int type, int line_no) {
             } else {
                 node = (StorageNode *)malloc(sizeof(StorageNode));
 
-                strncpy(node -> storage_name, name, length);
-                node -> storage_size = length;
+                strncpy(node -> storage_name, name, len);
+                node -> storage_size = len;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
                 node -> lines = (Referenced *)malloc(sizeof(Referenced));
@@ -112,7 +109,7 @@ void insert(char *name, int length, int type, int line_no) {
                 node -> indices = NULL;
                 node -> index_count = 0;
                 node -> cur_idx = 0;
-
+                
                 node -> next = table[hash_val];
                 table[hash_val] = node;
             }
@@ -120,18 +117,18 @@ void insert(char *name, int length, int type, int line_no) {
     }
 }
 
-StorageNode *lookup(char *name) {
+StorageNode *lookup(const char *name) {
     unsigned int hash_val = hash(name);
     StorageNode *node = table[hash_val];
 
-    while ((node != NULL) && (strncmp(name, node -> storage_name, node -> storage_size) != 0)) {
+    while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
     }
 
     return node;
 }
 
-void setDataType(char *name, int storage_type, int inferred_type) {
+void setDataType(const char *name, int storage_type, int inferred_type) {
     StorageNode *node = lookup(name);
 
     node -> storage_type = storage_type;
@@ -141,11 +138,11 @@ void setDataType(char *name, int storage_type, int inferred_type) {
     }
 }
 
-int getDataType(char *name) {
+int getDataType(const char *name) {
     StorageNode *node = lookup(name);
 
     if (node != NULL) {
-        if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
+        if (node -> storage_type == INT_TYPE || node -> storage_type == FLOAT_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
             return node -> storage_type;
         } else {
             return node -> inferred_type;
@@ -155,12 +152,12 @@ int getDataType(char *name) {
     }
 }
 
-Argument defineArg(int arg_type, int storage_type, char *arg_name, int pass) {
+Argument defineArg(int arg_type, int storage_type, const char *arg_name, int pass) {
     Argument arg;
 
     arg.arg_type = arg_type;
     arg.storage_type = storage_type;
-    strncpy(arg.arg_name, arg_name, strlen(arg_name));
+    strcpy(arg.arg_name, arg_name);
     arg.pass = pass;
 
     return arg;
@@ -195,17 +192,17 @@ void printSymbolTable(FILE *of) {
 
     for (int i = 0; i < SIZE; i++) {
         if (table[i] != NULL) { 
-            StorageNode* node = table[i];
+            StorageNode *node = table[i];
             
             while (node != NULL) {
-                Referenced* last = node -> lines;
+                Referenced *last = node -> lines;
                 fprintf(of, "%-13s ", node -> storage_name);
 
                 switch (node -> storage_type) {
                     case INT_TYPE:
                         fprintf(of, "%-15s", "int");
                         break;
-                    case REAL_TYPE:
+                    case FLOAT_TYPE:
                         fprintf(of, "%-15s", "real");
                         break;
                     case CHAR_TYPE:
@@ -227,7 +224,7 @@ void printSymbolTable(FILE *of) {
                             case INT_TYPE:
                                 fprintf(of, "%-6s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-6s", "real");
                                 break;
                             case CHAR_TYPE:
@@ -255,7 +252,7 @@ void printSymbolTable(FILE *of) {
                             case INT_TYPE:
                                 fprintf(of, "%-4s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-4s", "real");
                                 break;
                             case CHAR_TYPE:
@@ -280,7 +277,7 @@ void printSymbolTable(FILE *of) {
                             case INT_TYPE:
                                 fprintf(of, "%-6s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-6s", "real");
                                 break;
                             case CHAR_TYPE:

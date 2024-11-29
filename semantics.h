@@ -42,13 +42,13 @@ typedef struct RevisitQueueStruct {
 static RevisitQueue *queue;
 
 void pushToQueue(StorageNode *, char *, int);
-RevisitQueue *searchQueue(char *);
-RevisitQueue *searchPrevQueue(char *);
-int revisit(char *);
-int funcDeclaration(char *, int, int, Argument *);
-int funcArgCheck(char *, int, int **, int *);
+RevisitQueue* searchQueue(const char *);
+RevisitQueue* searchPrevQueue(const char *);
+int revisit(const char *);
+int funcDeclaration(const char *, int, int, Argument *);
+int funcArgCheck(const char *, int, int **, int *);
+void printRevisitQueue(FILE *);
 int getResultType(int, int, int);
 void typeError(int, int, int);
-void printRevisitQueue(FILE *);
 
 #endif // SEMANTICS_H

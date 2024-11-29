@@ -252,6 +252,8 @@ typedef struct ASTParenStruct {
     ASTNode *node;
 } ASTParen;
 
+static int contains_revisit = 0;
+
 ASTNode *newASTNode(NodeType, ASTNode *, ASTNode *);
 ASTNode *newASTDeclsNode(ASTNode **, int, ASTNode *);
 ASTNode *newASTDeclNode(int, StorageNode **, int);
@@ -281,5 +283,6 @@ ASTNode *newASTReturnNode(int, ASTNode *);
 ASTNode *newASTParenNode(ASTNode *);
 int getExpressionType(ASTNode *);
 void traverseAST(ASTNode *);
+void printASTNode(ASTNode *);
 
 #endif // AST_H

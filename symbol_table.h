@@ -1,11 +1,11 @@
 #ifndef SYMBOL_TABLE_H
 #define SYMBOL_TABLE_H
 
-#define SIZE 211
-#define MAX_TOKEN_LEN 40
-
 #include <stdio.h>
 #include "value_type.h"
+
+#define SIZE 211
+#define MAX_TOKEN_LEN 40
 
 typedef struct ASTNodeStruct ASTNode;
 
@@ -42,8 +42,9 @@ typedef struct StorageNodeStruct {
     int inferred_type;
     ValueType *vals;
     ASTNode *assigned;
-    ASTNode *array_size;
-    char **indices;
+    char *array_size;
+    //ASTNode *array_size;
+    char **indices; //TODO: change to array of ASTNode
     int index_count;
     int cur_idx;
     Argument *args;
@@ -52,14 +53,17 @@ typedef struct StorageNodeStruct {
 } StorageNode;
 
 static StorageNode **table;
+static int cur_scope = 0;
+static int declared = 0;
+static int function_declared = 0;
 
 void initSymbolTable();
-unsigned int hash(char * key);
-void insert(char *, int, int, int);
-StorageNode *lookup(char *);
-void setDataType(char *, int, int);
-int getDataType(char *);
-Argument defineArg(int, int, char *, int);
+unsigned int hash(const char *);
+void insert(const char *, int, int, int);
+StorageNode* lookup(const char *);
+void setDataType(const char *, int, int);
+int getDataType(const char *);
+Argument defineArg(int, int, const char *, int);
 void hideScope();
 void incrScope();
 void printSymbolTable(FILE *);
