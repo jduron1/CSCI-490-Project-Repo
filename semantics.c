@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "symbol_table.h"
-#include "ast.h"
 #include "semantics.h"
+#include "ast.h"
 
 extern int yylineno;
 
-void pushToQueue(StorageNode* entry, char* name, int type) {
-    RevisitQueue* q;
+void pushToQueue(StorageNode *entry, char *name, int type) {
+    RevisitQueue *q;
 
     if(queue == NULL) {
-        q = (RevisitQueue*)malloc(sizeof(RevisitQueue));
+        q = (RevisitQueue *)malloc(sizeof(RevisitQueue));
 
         q -> entry = entry;
         q -> storage_name = name;
@@ -32,7 +31,7 @@ void pushToQueue(StorageNode* entry, char* name, int type) {
             q = q -> next;
         }
 
-        q -> next = (RevisitQueue*)malloc(sizeof(RevisitQueue));
+        q -> next = (RevisitQueue *)malloc(sizeof(RevisitQueue));
 
         q -> next -> entry = entry;
         q -> next -> storage_name = name;
@@ -47,8 +46,8 @@ void pushToQueue(StorageNode* entry, char* name, int type) {
     }		
 }
 
-RevisitQueue* searchQueue(const char* name) {
-    RevisitQueue* q = queue;
+RevisitQueue *searchQueue(const char *name) {
+    RevisitQueue *q = queue;
 
     while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
         q = q -> next;
@@ -57,7 +56,7 @@ RevisitQueue* searchQueue(const char* name) {
     return q;
 }
 
-RevisitQueue* searchPrevQueue(const char* name) {
+RevisitQueue *searchPrevQueue(const char *name) {
     if (queue == NULL) {
         return NULL;
     }
@@ -66,7 +65,7 @@ RevisitQueue* searchPrevQueue(const char* name) {
         return NULL;
     }
 
-    RevisitQueue* q = queue;
+    RevisitQueue *q = queue;
 
     while ((q != NULL) && (strcmp(q -> storage_name, name) != 0)) {
         q = q -> next;
@@ -75,8 +74,8 @@ RevisitQueue* searchPrevQueue(const char* name) {
     return q;
 }
 
-int revisit(const char* name) {
-    RevisitQueue* q = searchQueue(name);
+int revisit(const char *name) {
+    RevisitQueue *q = searchQueue(name);
 
     if (q == NULL) {
         return -1;
@@ -90,14 +89,15 @@ int revisit(const char* name) {
                 printf("Function %s called with correct number of arguments.\n", name);
             }
 
-            RevisitQueue* prev = searchPrevQueue(name);
+            RevisitQueue *prev = searchPrevQueue(name);
 
             if (prev == NULL) {
                 queue = queue -> next;
             } else {
-                RevisitQueue* temp = prev -> next;
+                RevisitQueue *temp = prev -> next;
                 prev -> next = prev -> next -> next;
                 free(temp);
+                temp = NULL;
             }
 
             break;
@@ -112,12 +112,12 @@ int revisit(const char* name) {
                 getResultType(type_1, type_2, NONE);
             }
 
-            RevisitQueue* prev = searchPrevQueue(name);
+            RevisitQueue *prev = searchPrevQueue(name);
 
             if (prev == NULL) {
                 queue = queue -> next;
             } else {
-                RevisitQueue* temp = prev -> next;
+                RevisitQueue *temp = prev -> next;
                 prev -> next = prev -> next -> next;
                 free(temp);
             }
@@ -132,8 +132,8 @@ int revisit(const char* name) {
     return 0;
 }
 
-int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *args) {
-    StorageNode* node = lookup(name);
+int funcDeclaration(const char *name, int ret_type, int arg_count, Argument *args) {
+    StorageNode *node = lookup(name);
 
     if (node != NULL) {
         printf("Function %s declared at line %d.\n", name, node -> lines -> line_no);
@@ -152,8 +152,8 @@ int funcDeclaration(const char* name, int ret_type, int arg_count, Argument *arg
     }
 }
 
-int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_count) {
-    StorageNode* node = lookup(name);
+int funcArgCheck(const char *name, int call_count, int **arg_types, int *arg_count) {
+    StorageNode *node = lookup(name);
 
     for (int i = 0; i < call_count; i++) {
         if (node -> arg_count != arg_count[i]) {
@@ -172,8 +172,8 @@ int funcArgCheck(const char* name, int call_count, int** arg_types, int* arg_cou
     return 0;
 }
 
-void printRevisitQueue(FILE* of) {
-    RevisitQueue* q = queue;
+void printRevisitQueue(FILE *of) {
+    RevisitQueue *q = queue;
     
     fprintf(of, "------------ -------------\n");
     fprintf(of, "Identifier   Revisit Type\n");
@@ -207,8 +207,8 @@ int getResultType(int type_1, int type_2, int op) {
                     }
 
                     break;
-                case REAL_TYPE:
-                    if (type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
+                case FLOAT_TYPE:
+                    if (type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
                         return 1;
                     } else {
                         typeError(type_1, type_2, op);
@@ -233,16 +233,16 @@ int getResultType(int type_1, int type_2, int op) {
                 case INT_TYPE:
                     if (type_2 == INT_TYPE || type_2 == CHAR_TYPE) {
                         return INT_TYPE;
-                    } else if (type_2 == REAL_TYPE) {
-                        return REAL_TYPE;
+                    } else if (type_2 == FLOAT_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
 
                     break;
-                case REAL_TYPE:
-                    if (type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
-                        return REAL_TYPE;
+                case FLOAT_TYPE:
+                    if (type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
@@ -251,8 +251,8 @@ int getResultType(int type_1, int type_2, int op) {
                 case CHAR_TYPE:
                     if (type_2 == INT_TYPE || type_2 == CHAR_TYPE) {
                         return CHAR_TYPE;
-                    } else if (type_2 == REAL_TYPE) {
-                        return REAL_TYPE;
+                    } else if (type_2 == FLOAT_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
@@ -269,16 +269,16 @@ int getResultType(int type_1, int type_2, int op) {
                 case INT_TYPE:
                     if (type_2 == INT_TYPE || type_2 == CHAR_TYPE) {
                         return INT_TYPE;
-                    } else if (type_2 == REAL_TYPE) {
-                        return REAL_TYPE;
+                    } else if (type_2 == FLOAT_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
 
                     break;
-                case REAL_TYPE:
-                    if (type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
-                        return REAL_TYPE;
+                case FLOAT_TYPE:
+                    if (type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
@@ -287,8 +287,8 @@ int getResultType(int type_1, int type_2, int op) {
                 case CHAR_TYPE:
                     if (type_2 == INT_TYPE || type_2 == CHAR_TYPE) {
                         return CHAR_TYPE;
-                    } else if (type_2 == REAL_TYPE) {
-                        return REAL_TYPE;
+                    } else if (type_2 == FLOAT_TYPE) {
+                        return FLOAT_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
@@ -305,8 +305,8 @@ int getResultType(int type_1, int type_2, int op) {
                 case INT_TYPE:
                     return INT_TYPE;
                     break;
-                case REAL_TYPE:
-                    return REAL_TYPE;
+                case FLOAT_TYPE:
+                    return FLOAT_TYPE;
                     break;
                 case CHAR_TYPE:
                     return CHAR_TYPE;
@@ -369,15 +369,15 @@ int getResultType(int type_1, int type_2, int op) {
         case REL_OP:
             switch (type_1) {
                 case INT_TYPE:
-                    if (type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
+                    if (type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
                         return BOOL_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
                     }
 
                     break;
-                case REAL_TYPE:
-                    if(type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
+                case FLOAT_TYPE:
+                    if(type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
                         return BOOL_TYPE;
                     } else{
                         typeError(type_1, type_2, op);
@@ -385,7 +385,7 @@ int getResultType(int type_1, int type_2, int op) {
 
                     break;
                 case CHAR_TYPE:
-                    if(type_2 == INT_TYPE || type_2 == REAL_TYPE || type_2 == CHAR_TYPE) {
+                    if(type_2 == INT_TYPE || type_2 == FLOAT_TYPE || type_2 == CHAR_TYPE) {
                         return BOOL_TYPE;
                     } else{
                         typeError(type_1, type_2, op);
@@ -416,8 +416,8 @@ int getResultType(int type_1, int type_2, int op) {
                     }
 
                     break;
-                case REAL_TYPE:
-                    if (type_2 == REAL_TYPE) {
+                case FLOAT_TYPE:
+                    if (type_2 == FLOAT_TYPE) {
                         return BOOL_TYPE;
                     } else {
                         typeError(type_1, type_2, op);
@@ -460,7 +460,7 @@ void typeError(int type_1, int type_2, int op) {
         case INT_TYPE:
             fprintf(stderr, "int ");
             break;
-        case REAL_TYPE:
+        case FLOAT_TYPE:
             fprintf(stderr, "real ");
             break;
         case CHAR_TYPE:
@@ -495,7 +495,7 @@ void typeError(int type_1, int type_2, int op) {
         case INT_TYPE:
             fprintf(stderr, "int ");
             break;
-        case REAL_TYPE:
+        case FLOAT_TYPE:
             fprintf(stderr, "real ");
             break;
         case CHAR_TYPE:
@@ -558,6 +558,5 @@ void typeError(int type_1, int type_2, int op) {
     }
 
     fprintf(stderr, " in line %d.\n", yylineno);
-
     exit(1);
 }

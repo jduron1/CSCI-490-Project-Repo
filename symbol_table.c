@@ -1,23 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "semantics.h"
 #include "symbol_table.h"
-#include "ast.h"
-
-static int cur_scope = 0;
-static int declared = 0;
-static int function_declared = 0;
+#include "semantics.h"
 
 void initSymbolTable() {
-    table = (StorageNode**)malloc(SIZE * sizeof(StorageNode*));
+    table = (StorageNode **)malloc(SIZE  *sizeof(StorageNode *));
 
     for(int i = 0; i < SIZE; i++) {
         table[i] = NULL;
     }
 }
 
-unsigned int hash(const char* key) {
+unsigned int hash(const char *key) {
     unsigned int hash_val = 0;
 
     while (*key != '\0') {
@@ -29,9 +24,9 @@ unsigned int hash(const char* key) {
     return hash_val % SIZE;
 }
 
-void insert(const char* name, int len, int type, int line_no) {
+void insert(const char *name, int len, int type, int line_no) {
     unsigned int hash_val = hash(name);
-    StorageNode* node = table[hash_val];
+    StorageNode *node = table[hash_val];
 
     while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
@@ -39,13 +34,13 @@ void insert(const char* name, int len, int type, int line_no) {
 
     if (node == NULL) {
         if (declared) {
-            node = (StorageNode*)malloc(sizeof(StorageNode));
+            node = (StorageNode *)malloc(sizeof(StorageNode));
 
             strncpy(node -> storage_name, name, len);
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced *)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
             node -> array_size = NULL;
@@ -56,13 +51,13 @@ void insert(const char* name, int len, int type, int line_no) {
             node -> next = table[hash_val];
             table[hash_val] = node; 
         } else {
-            node = (StorageNode*)malloc(sizeof(StorageNode));
+            node = (StorageNode *)malloc(sizeof(StorageNode));
 
             strncpy(node -> storage_name, name, len);
             node -> storage_size = len;
             node -> storage_type = type;
             node -> scope = cur_scope;
-            node -> lines = (Referenced*)malloc(sizeof(Referenced));
+            node -> lines = (Referenced *)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
             node -> array_size = NULL;
@@ -77,13 +72,13 @@ void insert(const char* name, int len, int type, int line_no) {
         }
     } else {
         if (!declared) {
-            Referenced* lines = node -> lines;
+            Referenced *lines = node -> lines;
 
             while (lines -> next != NULL) {
                 lines = lines -> next;
             }
 
-            lines -> next = (Referenced*)malloc(sizeof(Referenced));
+            lines -> next = (Referenced *)malloc(sizeof(Referenced));
             lines -> next -> line_no = line_no;
             lines -> next -> next = NULL;
         } else {
@@ -91,23 +86,23 @@ void insert(const char* name, int len, int type, int line_no) {
                 fprintf(stderr, "Redefinition of %s at line %d.\n", name, node -> lines -> line_no);
                 exit(1);
             } else if (function_declared) {
-                Referenced* lines = node -> lines;
+                Referenced *lines = node -> lines;
 
                 while (lines -> next != NULL) {
                     lines = lines -> next;
                 }
 
-                lines -> next = (Referenced*)malloc(sizeof(Referenced));
+                lines -> next = (Referenced *)malloc(sizeof(Referenced));
                 lines -> next -> line_no = line_no;
                 lines -> next -> next = NULL;
             } else {
-                node = (StorageNode*)malloc(sizeof(StorageNode));
+                node = (StorageNode *)malloc(sizeof(StorageNode));
 
                 strncpy(node -> storage_name, name, len);
                 node -> storage_size = len;
                 node -> storage_type = type;
                 node -> scope = cur_scope;
-                node -> lines = (Referenced*)malloc(sizeof(Referenced));
+                node -> lines = (Referenced *)malloc(sizeof(Referenced));
                 node -> lines -> line_no = line_no;
                 node -> lines -> next = NULL;
                 node -> array_size = NULL;
@@ -122,9 +117,9 @@ void insert(const char* name, int len, int type, int line_no) {
     }
 }
 
-StorageNode* lookup(const char* name) {
+StorageNode *lookup(const char *name) {
     unsigned int hash_val = hash(name);
-    StorageNode* node = table[hash_val];
+    StorageNode *node = table[hash_val];
 
     while ((node != NULL) && (strcmp(name, node -> storage_name) != 0)) {
         node = node -> next;
@@ -133,8 +128,8 @@ StorageNode* lookup(const char* name) {
     return node;
 }
 
-void setDataType(const char* name, int storage_type, int inferred_type) {
-    StorageNode* node = lookup(name);
+void setDataType(const char *name, int storage_type, int inferred_type) {
+    StorageNode *node = lookup(name);
 
     node -> storage_type = storage_type;
 
@@ -143,11 +138,11 @@ void setDataType(const char* name, int storage_type, int inferred_type) {
     }
 }
 
-int getDataType(const char* name) {
-    StorageNode* node = lookup(name);
+int getDataType(const char *name) {
+    StorageNode *node = lookup(name);
 
     if (node != NULL) {
-        if (node -> storage_type == INT_TYPE || node -> storage_type == REAL_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
+        if (node -> storage_type == INT_TYPE || node -> storage_type == FLOAT_TYPE || node -> storage_type == CHAR_TYPE || node -> storage_type == STRING_TYPE || node -> storage_type == BOOL_TYPE) {
             return node -> storage_type;
         } else {
             return node -> inferred_type;
@@ -157,7 +152,7 @@ int getDataType(const char* name) {
     }
 }
 
-Argument defArg(int arg_type, int storage_type, const char* arg_name, int pass) {
+Argument defineArg(int arg_type, int storage_type, const char *arg_name, int pass) {
     Argument arg;
 
     arg.arg_type = arg_type;
@@ -169,7 +164,7 @@ Argument defArg(int arg_type, int storage_type, const char* arg_name, int pass) 
 }
 
 void hideScope() {
-    StorageNode* node;
+    StorageNode *node;
 
     for (int i = 0; i < SIZE; i++) {
         if (table[i] != NULL) {
@@ -190,24 +185,24 @@ void incrScope() {
     cur_scope++;
 }
 
-void printSymbolTable(FILE* of) {
+void printSymbolTable(FILE *of) {
     fprintf(of, "------------ -------------- ------ ------------\n");
     fprintf(of, "Name         Type           Scope  Line Numbers\n");
     fprintf(of, "------------ -------------- ------ ------------\n");
 
     for (int i = 0; i < SIZE; i++) {
         if (table[i] != NULL) { 
-            StorageNode* node = table[i];
+            StorageNode *node = table[i];
             
             while (node != NULL) {
-                Referenced* last = node -> lines;
+                Referenced *last = node -> lines;
                 fprintf(of, "%-13s ", node -> storage_name);
 
                 switch (node -> storage_type) {
                     case INT_TYPE:
                         fprintf(of, "%-15s", "int");
                         break;
-                    case REAL_TYPE:
+                    case FLOAT_TYPE:
                         fprintf(of, "%-15s", "real");
                         break;
                     case CHAR_TYPE:
@@ -229,7 +224,7 @@ void printSymbolTable(FILE* of) {
                             case INT_TYPE:
                                 fprintf(of, "%-6s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-6s", "real");
                                 break;
                             case CHAR_TYPE:
@@ -257,7 +252,7 @@ void printSymbolTable(FILE* of) {
                             case INT_TYPE:
                                 fprintf(of, "%-4s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-4s", "real");
                                 break;
                             case CHAR_TYPE:
@@ -282,7 +277,7 @@ void printSymbolTable(FILE* of) {
                             case INT_TYPE:
                                 fprintf(of, "%-6s", "int");
                                 break;
-                            case REAL_TYPE:
+                            case FLOAT_TYPE:
                                 fprintf(of, "%-6s", "real");
                                 break;
                             case CHAR_TYPE:
