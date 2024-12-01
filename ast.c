@@ -115,6 +115,17 @@ ASTNode *newASTForNode(ASTNode *init, ASTNode *condition, ASTNode *increment, AS
     return (ASTNode *)node;
 }
 
+ASTNode *newASTForEachNode(StorageNode *element, StorageNode *array, ASTNode *for_branch) {
+    ASTForEach *node = (ASTForEach *)malloc(sizeof(ASTForEach));
+
+    node -> type = FOR_EACH_NODE;
+    node -> element = element;
+    node -> array = array;
+    node -> for_branch = for_branch;
+
+    return (ASTNode *)node;
+}
+
 void setLoopCounter(ASTNode *node) {
     ASTFor *for_node = (ASTFor *)node;
     ASTAssign *assign_node = (ASTAssign *)for_node -> init;

@@ -15,6 +15,7 @@ typedef enum NodeTypeEnum {
     IF_NODE,
     ELSE_IF_NODE,
     FOR_NODE,
+    FOR_EACH_NODE,
     WHILE_NODE,
     ASSIGN_NODE,
     ARITH_ASSIGN_NODE,
@@ -127,6 +128,13 @@ typedef struct ASTForStruct {
     ASTNode *for_branch;
     StorageNode *iterator;
 } ASTFor;
+
+typedef struct ASTForEachStruct {
+    NodeType type;
+    StorageNode *element;
+    StorageNode *array;
+    ASTNode *for_branch;
+} ASTForEach;
 
 typedef struct ASTWhileStruct {
     NodeType type;
@@ -262,6 +270,7 @@ ASTNode *newASTStmtsNode(ASTNode **, int, ASTNode *);
 ASTNode *newASTIfNode(ASTNode *, ASTNode *, ASTNode **, int, ASTNode *);
 ASTNode *newASTElseIfNode(ASTNode *, ASTNode *);
 ASTNode *newASTForNode(ASTNode *, ASTNode *, ASTNode *, ASTNode *);
+ASTNode *newASTForEachNode(StorageNode *, StorageNode *, ASTNode *);
 void setLoopCounter(ASTNode *);
 ASTNode *newASTWhileNode(ASTNode *, ASTNode *);
 ASTNode *newASTAssignNode(StorageNode *, int, ASTNode *);
