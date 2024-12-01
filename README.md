@@ -10,7 +10,7 @@ Implementation of a small compiler for my language.
 # Compiling the Flex and Bison Files
 1. flex scanner.l
 2. bison -d parser.y
-3. gcc -lfl lex.yy.c parser.tab.c
+3. gcc -lfl lex.yy.c parser.tab.c symbol_table.c semantics.c ast.c code_gen.c
 
 # Running the Executable
 ./a.out [file name]
