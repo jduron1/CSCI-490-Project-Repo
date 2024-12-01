@@ -99,7 +99,7 @@
 program: parts 
             { 
                 root = (ASTNode*)$$;
-                traverseAST(root);
+                //traverseAST(root);
             }
        ;
 
@@ -258,24 +258,29 @@ type: BOOLEANO { $$ = BOOL_TYPE; }
 
 variable: IDENTIFIER
             {
-                $1 -> assigned = NULL;
                 $$ = $1;
+                $$ -> assigned = NULL;
 
-                if ($1 -> storage_type == ARRAY_TYPE) {
-                    if ($1 -> indices != NULL) {
-                        for (int i = 0; i < $1 -> index_count; i++) {
-                            free($1 -> indices[i]);
+                if ($$ -> storage_type == ARRAY_TYPE) {
+                    // printf("Referenced at line %d.\n", yylineno);
+                    // printf("Indices: %p\n", $$ -> indices);
+
+                    if ($$ -> indices != NULL) {
+                        for (int i = 0; i < $$ -> index_count; i++) {
+                            free($$ -> indices[i]);
+                            $$ -> indices[i] = NULL;
                         }
+                        free($$ -> indices);
 
-                        free($1 -> indices);
-                    }
-
-                    $1 -> indices = NULL;
+                        //printf("Indices freed at line %d.\n", yylineno);
+                    } //else {
+                    //     printf("Warning: Indices are already NULL at line %d.\n", yylineno);
+                    // }
+                    $$ -> indices = NULL;
                 }
             }
         | pointer IDENTIFIER
             {
-                $2 -> assigned = NULL;
                 $2 -> storage_type = POINTER_TYPE;
                 $$ = $2;
             }
@@ -288,7 +293,6 @@ variable: IDENTIFIER
 
                     $1 -> storage_type = ARRAY_TYPE;
                     $1 -> vals = NULL;
-                    $1 -> assigned = NULL;
 
                     $1 -> array_size = (char *)malloc(strlen(temp) + 1);
                     if ($1 -> array_size == NULL) {
@@ -330,7 +334,6 @@ variable: IDENTIFIER
 
                     $2 -> storage_type = ARRAY_TYPE;
                     $2 -> vals = NULL;
-                    $2 -> assigned = NULL;
 
                     $2 -> array_size = (char *)malloc(strlen(temp) + 1);
                     if ($2 -> array_size == NULL) {
@@ -372,7 +375,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[32];
             sprintf(temp, "%lld", $2.integer);
 
-            $$ = (char*)malloc(strlen(temp) + 1);
+            $$ = (char *)malloc(strlen(temp) + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -386,7 +389,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[strlen($2 -> storage_name) + 1];
             strcpy(temp, $2 -> storage_name);
             
-            $$ = (char*)malloc(strlen(temp) + 1);
+            $$ = (char *)malloc(strlen(temp) + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -400,7 +403,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[32];
             sprintf(temp, "%lld", $2.integer);
 
-            $$ = (char*)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" + ") + 1);
+            $$ = (char *)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" + ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -415,7 +418,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[32];
             sprintf(temp, "%lld", $4.integer);
 
-            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" + ") + 1);
+            $$ = (char *)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" + ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -427,7 +430,7 @@ array: LBRACKET INTEGER RBRACKET
         }
      | LBRACKET IDENTIFIER ADD IDENTIFIER RBRACKET
         {
-            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" + ") + 1);
+            $$ = (char *)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" + ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -442,7 +445,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[32];
             sprintf(temp, "%lld", $2.integer);
 
-            $$ = (char*)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" - ") + 1);
+            $$ = (char *)malloc(strlen(temp) + strlen($4 -> storage_name) + strlen(" - ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -457,7 +460,7 @@ array: LBRACKET INTEGER RBRACKET
             char temp[32];
             sprintf(temp, "%lld", $4.integer);
 
-            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" - ") + 1);
+            $$ = (char *)malloc(strlen($2 -> storage_name) + strlen(temp) + strlen(" - ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -469,7 +472,7 @@ array: LBRACKET INTEGER RBRACKET
         }
      | LBRACKET IDENTIFIER SUB IDENTIFIER RBRACKET
         {
-            $$ = (char*)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" - ") + 1);
+            $$ = (char *)malloc(strlen($2 -> storage_name) + strlen($4 -> storage_name) + strlen(" - ") + 1);
             if ($$ == NULL) {
                 fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
                 exit(1);
@@ -546,6 +549,7 @@ names: names COMMA variable { addToNames($3); }
 init: IDENTIFIER ASSIGN expression
         {
             $1 -> assigned = (ASTNode *)$3;
+            $1 -> storage_type = getExpressionType($3);
             $$ = $1;
         }
     | IDENTIFIER LBRACKET RBRACKET ASSIGN LBRACE values RBRACE
@@ -561,14 +565,7 @@ init: IDENTIFIER ASSIGN expression
             $1 -> vals = vals;
 
             sprintf(temp, "%d", val_count);
-
-            $1 -> array_size = (char*)malloc(strlen(temp) + 1);
-            if ($1 -> array_size == NULL) {
-                fprintf(stderr, "Error at line %d: memory allocation failed.\n", yylineno);
-                exit(1);
-            }
-
-            strcpy($1 -> array_size, temp);
+            $1 -> array_size = strdup(temp);
 
             $$ = $1;
         }
@@ -715,6 +712,11 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER LBRACE body RBRACE
             $$ = newASTForNode(temp_3, temp_2, temp_1, $10);
             setLoopCounter($$);
         }
+   | POR type IDENTIFIER EN IDENTIFIER LBRACE body RBRACE
+        {
+            $3 -> storage_type = $2;
+            $$ = newASTForEachNode($3, $5, $7);
+        }
    //| POR type IDENTIFIER EN expression ELLIPSIS expression LBRACE body RBRACE
    ;
 
@@ -745,8 +747,6 @@ assignment: var_ref ASSIGN expression SEMICOLON
                     RevisitQueue *q = searchQueue(temp -> entry -> storage_name);
 
                     if (q == NULL) {
-                        printf("Queue function called: ");
-                        printf("%p\n", queue);
                         pushToQueue(temp -> entry, temp -> entry -> storage_name, ASSIGN_CHECK);
                         q = searchQueue(temp -> entry -> storage_name);
                     }
@@ -1166,6 +1166,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Syntax check: %s\n", yyparse() == 0 ? "Success" : "Failure");
+    fclose(yyin);
 
     /* do {
         RevisitQueue *q = searchPrevQueue(queue -> storage_name);

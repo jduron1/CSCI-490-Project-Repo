@@ -43,6 +43,8 @@ void insert(const char *name, int len, int type, int line_no) {
             node -> lines = (Referenced *)malloc(sizeof(Referenced));
             node -> lines -> line_no = line_no;
             node -> lines -> next = NULL;
+            node -> vals = NULL;
+            node -> assigned = NULL;
             node -> array_size = NULL;
             node -> indices = NULL;
             node -> index_count = 0;

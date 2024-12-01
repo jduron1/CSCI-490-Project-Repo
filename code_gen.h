@@ -17,6 +17,7 @@ void generateStatementCode(FILE *, ASTNode *);
 void generateIfCode(FILE *, ASTNode *);
 void generateElseIfCode(FILE *, ASTNode *);
 void generateForCode(FILE *, ASTNode *);
+void generateForEachCode(FILE *, ASTNode *);
 void generateWhileCode(FILE *, ASTNode *);
 void generateAssignCode(FILE *, ASTNode *);
 void generateArithAssignCode(FILE *, ASTNode *);

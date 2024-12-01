@@ -63,9 +63,17 @@ void generateRefCode(FILE *of, ASTNode *node) {
     }
 
     if (ref_node -> entry -> storage_type == ARRAY_TYPE && ref_node -> entry -> indices != NULL) {
+        printf("Name of array with indices: %s\n", ref_node -> entry -> storage_name);
+        printf("At line: %d\n", ref_node -> entry -> lines -> line_no);
         fprintf(of, "%s[%s]", ref_node -> entry -> storage_name, ref_node -> entry -> indices[ref_node -> entry -> cur_idx]);
         ref_node -> entry -> cur_idx++;
     } else {
+        if (ref_node -> entry -> storage_type == ARRAY_TYPE) {
+            printf("Name of array: %s\n", ref_node -> entry -> storage_name);
+            printf("Indices check: %p\n", ref_node -> entry -> indices);
+            printf("At line: %d\n", ref_node -> entry -> lines -> line_no);
+        }
+
         fprintf(of, "%s", ref_node -> entry -> storage_name);
     }
 }
@@ -262,6 +270,9 @@ void generateDeclCode(FILE *of, ASTNode *node) {
         }
 
         if (decl_node -> entries[i] -> assigned != NULL) {
+            printf("Variable name: %s\n", decl_node -> entries[i] -> storage_name);
+            printf("Assigned value: %p\n", decl_node -> entries[i] -> assigned);
+            printf("Assigned value type: %d\n", decl_node -> entries[i] -> assigned -> type);
             fprintf(of, " = ");
             findNodeType(of, decl_node -> entries[i] -> assigned);
         }
@@ -294,6 +305,9 @@ void generateStatementCode(FILE *of, ASTNode *node) {
             break;
         case FOR_NODE:
             generateForCode(of, node);
+            break;
+        case FOR_EACH_NODE:
+            generateForEachCode(of, node);
             break;
         case WHILE_NODE:
             generateWhileCode(of, node);
@@ -422,6 +436,41 @@ void generateForCode(FILE *of, ASTNode *node) {
     fprintf(of, "\n}\n");
 
     for_flag = 0;
+}
+
+void generateForEachCode(FILE *of, ASTNode *node) {
+    ASTForEach *for_each_node = (ASTForEach *)node;
+
+    fprintf(of, "for (");
+
+    switch (for_each_node -> element -> storage_type) {
+        case INT_TYPE:
+            fprintf(of, "int ");
+            break;
+        case FLOAT_TYPE:
+            fprintf(of, "double ");
+            break;
+        case CHAR_TYPE:
+            fprintf(of, "char ");
+            break;
+        case STRING_TYPE:
+            fprintf(of, "string ");
+            break;
+        case BOOL_TYPE:
+            fprintf(of, "bool ");
+            break;
+        case VOID_TYPE:
+            fprintf(of, "void ");
+            break;
+        default:
+            break;
+    }
+
+    fprintf(of, "%s : %s) {\n", for_each_node -> element -> storage_name, for_each_node -> array -> storage_name);
+
+    generateStatementCode(of, for_each_node -> for_branch);
+
+    fprintf(of, "}\n");
 }
 
 void generateWhileCode(FILE *of, ASTNode *node) {
