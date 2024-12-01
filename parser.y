@@ -259,7 +259,6 @@ type: BOOLEANO { $$ = BOOL_TYPE; }
 variable: IDENTIFIER
             {
                 $$ = $1;
-                $$ -> assigned = NULL;
 
                 if ($$ -> storage_type == ARRAY_TYPE) {
                     // printf("Referenced at line %d.\n", yylineno);
