@@ -10,6 +10,7 @@ typedef enum NodeTypeEnum {
     BASIC_NODE,
     DECLS_NODE,
     DECL_NODE,
+    INCLUDE_NODE,
     CONST_NODE,
     STMTS_NODE,
     IF_NODE,
@@ -92,6 +93,11 @@ typedef struct ASTDeclStruct {
     StorageNode **entries;
     int names_count;
 } ASTDecl;
+
+typedef struct ASTIncludeStruct {
+    NodeType type;
+    char *path;
+} ASTInclude;
 
 typedef struct ASTConstStruct {
     NodeType type;

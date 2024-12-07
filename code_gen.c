@@ -63,17 +63,9 @@ void generateRefCode(FILE *of, ASTNode *node) {
     }
 
     if (ref_node -> entry -> storage_type == ARRAY_TYPE && ref_node -> entry -> indices != NULL) {
-        printf("Name of array with indices: %s\n", ref_node -> entry -> storage_name);
-        printf("At line: %d\n", ref_node -> entry -> lines -> line_no);
         fprintf(of, "%s[%s]", ref_node -> entry -> storage_name, ref_node -> entry -> indices[ref_node -> entry -> cur_idx]);
         ref_node -> entry -> cur_idx++;
     } else {
-        if (ref_node -> entry -> storage_type == ARRAY_TYPE) {
-            printf("Name of array: %s\n", ref_node -> entry -> storage_name);
-            printf("Indices check: %p\n", ref_node -> entry -> indices);
-            printf("At line: %d\n", ref_node -> entry -> lines -> line_no);
-        }
-
         fprintf(of, "%s", ref_node -> entry -> storage_name);
     }
 }
@@ -270,9 +262,6 @@ void generateDeclCode(FILE *of, ASTNode *node) {
         }
 
         if (decl_node -> entries[i] -> assigned != NULL) {
-            printf("Variable name: %s\n", decl_node -> entries[i] -> storage_name);
-            printf("Assigned value: %p\n", decl_node -> entries[i] -> assigned);
-            printf("Assigned value type: %d\n", decl_node -> entries[i] -> assigned -> type);
             fprintf(of, " = ");
             findNodeType(of, decl_node -> entries[i] -> assigned);
         }

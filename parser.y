@@ -33,6 +33,13 @@
     ASTNode **else_ifs;
     int else_if_count = 0;
 
+    void addInclude(char *);
+    char **includes;
+    int include_count = 0;
+
+    void freeAST(ASTNode *);
+    void freeStorageNode(StorageNode *);
+
     int check_size = 0;
 %}
 
@@ -48,7 +55,7 @@
 }
 
 %token <value> CARACTER BOOLEANO ENTERO REAL CADENA VACIO
-%token <value> FUNCION CIERTO FALSO SI SINO
+%token <value> INCLUIR FUNCION CIERTO FALSO SI SINO
 %token <value> POR MIENTRAS PARAR CONTINUAR REGRESAR
 %token <value> ADD SUB MUL DIV MOD EXP ADD_ASSIGN SUB_ASSIGN
 %token <value> MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN EXP_ASSIGN
@@ -75,7 +82,7 @@
 %right NOT AMPERSAND NEGATIVE
 %left LPAREN RPAREN LBRACKET RBRACKET
 
-%type <node> program parts function //global
+%type <node> program parts include function global
 %type <node> body statements 
 %type <node> declaration statement
 %type <node> assignment
@@ -99,49 +106,42 @@
 program: parts 
             { 
                 root = (ASTNode*)$$;
-                //traverseAST(root);
             }
        ;
 
-parts: parts function
+parts: parts include
         {
-            ASTFuncDecls *temp = (ASTFuncDecls *)$1;
-            $$ = newASTFuncDeclsNode(temp -> func_declarations, temp -> func_declaration_count, $2);
-        }
-     | function
-        {
-            $$ = newASTFuncDeclsNode(NULL, 0, $1);
-        }
-     ;
-
-/* parts: parts global
-        {
-            $$ = newASTStmtsNode(((ASTStmts *)$1) -> statements, ((ASTStmts *)$1) -> statement_count, $2);
-        }
-     | global
-        {
-            $$ = newASTStmtsNode(NULL, 0, $1);
+            $$ = NULL;
         }
      | parts function
         {
             ASTFuncDecls *temp = (ASTFuncDecls *)$1;
             $$ = newASTFuncDeclsNode(temp -> func_declarations, temp -> func_declaration_count, $2);
         }
+     | parts global
+        {
+            ASTStmts *temp = (ASTStmts *)$1;
+            $$ = newASTStmtsNode(temp -> statements, temp -> statement_count, $2);
+        }
+     | include
+        {
+            $$ = NULL;
+        }
      | function
         {
             $$ = newASTFuncDeclsNode(NULL, 0, $1);
         }
-     ; */
-
-/* global: declaration { $$ = $1; }
-      | assignment { $$ = $1; }
-      ; */
-
-/* global: statements
+     | global
         {
-            $$ = $1;
+            $$ = newASTStmtsNode(NULL, 0, $1);
         }
-      ; */
+     ;
+
+include: INCLUIR STRING
+            {
+                addInclude($2.string);
+            }
+       ;
 
 function: { incrScope(); } head tail
             {
@@ -256,26 +256,30 @@ type: BOOLEANO { $$ = BOOL_TYPE; }
     | VACIO { $$ = VOID_TYPE; }
     ;
 
+global: declaration
+        {
+            $$ = $1;
+        }
+      | assignment
+        {
+            $$ = $1;
+        }
+      ;
+
 variable: IDENTIFIER
             {
                 $$ = $1;
 
                 if ($$ -> storage_type == ARRAY_TYPE) {
-                    // printf("Referenced at line %d.\n", yylineno);
-                    // printf("Indices: %p\n", $$ -> indices);
-
                     if ($$ -> indices != NULL) {
                         for (int i = 0; i < $$ -> index_count; i++) {
                             free($$ -> indices[i]);
                             $$ -> indices[i] = NULL;
                         }
-                        free($$ -> indices);
 
-                        //printf("Indices freed at line %d.\n", yylineno);
-                    } //else {
-                    //     printf("Warning: Indices are already NULL at line %d.\n", yylineno);
-                    // }
-                    $$ -> indices = NULL;
+                        free($$ -> indices);
+                        $$ -> indices = NULL;
+                    }
                 }
             }
         | pointer IDENTIFIER
@@ -486,24 +490,6 @@ array: LBRACKET INTEGER RBRACKET
             $$ = NULL;
         }
       ;
-
-/* body: body declaration // TODO: put a separate production (ex: bodies body)
-        {
-            $$ = newASTDeclsNode(((ASTDecls *)$1) -> declarations, ((ASTDecls *)$1) -> declaration_count, $2);
-        }
-    | declaration
-        {
-            $$ = newASTDeclsNode(NULL, 0, $1);
-        }
-    | body statement
-        {
-            $$ = newASTStmtsNode(((ASTStmts *)$1) -> statements, ((ASTStmts *)$1) -> statement_count, $2);
-        }
-    | statement
-        {
-            $$ = newASTStmtsNode(NULL, 0, $1);
-        }
-    ; */
 
 body: statements
         {
@@ -716,7 +702,6 @@ for: POR IDENTIFIER EN INTEGER ELLIPSIS INTEGER LBRACE body RBRACE
             $3 -> storage_type = $2;
             $$ = newASTForEachNode($3, $5, $7);
         }
-   //| POR type IDENTIFIER EN expression ELLIPSIS expression LBRACE body RBRACE
    ;
 
 return: REGRESAR SEMICOLON
@@ -1150,13 +1135,12 @@ constant: CHARACTER { $$ = newASTConstNode(CHAR_TYPE, $1); }
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Usage: %s <input file>\n", argv[0]);
+        printf("Usage: %s <input file> <input file> ...\n", argv[0]);
         return 1;
     }
 
     int length = strlen(argv[1]) + 1;
     initSymbolTable();
-    //queue = NULL;
 
     yyin = fopen(argv[1], "r");
     if (yyin == NULL) {
@@ -1167,36 +1151,6 @@ int main(int argc, char *argv[]) {
     printf("Syntax check: %s\n", yyparse() == 0 ? "Success" : "Failure");
     fclose(yyin);
 
-    /* do {
-        RevisitQueue *q = searchPrevQueue(queue -> storage_name);
-
-        if (q == NULL) {
-            if (queue != NULL) {
-                queue = queue -> next;
-            }
-        } else {
-            RevisitQueue *temp = q -> next;
-            q -> next = q -> next -> next;
-            free(temp);
-            temp = NULL;
-        }
-    } while (queue != NULL);
-
-    while (queue != NULL) {
-        if (queue -> revisit_type == ASSIGN_CHECK) {
-            revisit(queue -> storage_name);
-        }
-
-        RevisitQueue *temp = queue;
-        queue = queue -> next;
-        free(temp);
-        temp = NULL;
-    }
-
-    if (queue != NULL) {
-        printf("Unchecked item in the revisit queue.\n");
-    } */
-
     ASTFuncDecls *temp_1 = (ASTFuncDecls *)root;
 
     if (temp_1 != NULL) {
@@ -1206,22 +1160,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* yyout = fopen("table.out", "w");
-    if (yyout = NULL) {
-        fprintf(stderr, "Error: Unable to open file.\n");
-        return 1;
-    }
-
-    printSymbolTable(yyout);
-
-    yyout = fopen("queue.out", "w");
-    if (yyout == NULL) {
-        fprintf(stderr, "Error: Unable to open file.\n");
-        return 1;
-    }
-
-    printRevisitQueue(yyout); */
-
     yyout = fopen("output.cpp", "w");
     if (yyout == NULL) {
         fprintf(stderr, "Error: Unable to open file.\n");
@@ -1230,10 +1168,11 @@ int main(int argc, char *argv[]) {
 
     fprintf(yyout, "#include <bits/stdc++.h>\n");
     fprintf(yyout, "using namespace std;\n\n");
-
     findNodeType(yyout, root);
 
     fclose(yyout);
+
+    //freeAST(root);
 
     return 0;
 }
@@ -1272,6 +1211,99 @@ void addElseIf(ASTNode *node) {
         else_ifs = (ASTNode **)realloc(else_ifs, else_if_count * sizeof(ASTNode *));
         else_ifs[else_if_count - 1] = node;
     }
+}
+
+void addInclude(char *string) {
+    if (include_count == 0) {
+        includes = (char **)malloc(sizeof(char *));
+        includes[0] = (char *)malloc(strlen(string) + 1);
+        strcpy(includes[0], string);
+        include_count = 1;
+    } else {
+        include_count++;
+        includes = (char **)realloc(includes, include_count * sizeof(char *));
+        includes[include_count - 1] = (char *)malloc(strlen(string) + 1);
+        strcpy(includes[include_count - 1], string);
+    }
+}
+
+void freeAST(ASTNode *node) {
+    if (node == NULL) {
+        return;
+    }
+
+    printf("Node type: %d\n", node -> type);
+
+    switch (node -> type) {
+        case FUNC_DECLS_NODE: {
+            ASTFuncDecls *temp = (ASTFuncDecls *)node;
+
+            for (int i = 0; i < temp -> func_declaration_count; i++) {
+                freeAST(temp -> func_declarations[i]);
+            }
+
+            free(temp -> func_declarations);
+            temp -> func_declarations = NULL;
+
+            free(temp);
+            temp = NULL;
+
+            break;
+        }
+
+        case FUNC_DECL_NODE: {
+            ASTFuncDecl *temp = (ASTFuncDecl *)node;
+
+            freeStorageNode(temp -> entry);
+
+            freeAST(temp -> declarations);
+            freeAST(temp -> statements);
+            freeAST(temp -> ret);
+        }
+        
+        case DECLS_NODE: {
+            ASTDecls *temp = (ASTDecls *)node;
+
+            for (int i = 0; i < temp -> declaration_count; i++) {
+                freeAST(temp -> declarations[i]);
+            }
+
+            free(temp -> declarations);
+            temp -> declarations = NULL;
+
+            free(temp);
+            temp = NULL;
+
+            break;
+        }
+
+        case DECL_NODE: {
+            ASTDecl *temp = (ASTDecl *)node;
+
+            for (int i = 0; i < temp -> names_count; i++) {
+                freeStorageNode(temp -> entries[i]);
+            }
+
+            free(temp -> entries);
+            temp -> entries = NULL;
+
+            free(temp);
+            temp = NULL;
+
+            break;
+        }
+    }
+}
+
+void freeStorageNode(StorageNode *node) {
+    if (node == NULL) {
+        return;
+    }
+
+    free(node -> storage_name);
+    free(node -> array_size);
+    free(node -> indices);
+    free(node);
 }
 
 void yyerror() {

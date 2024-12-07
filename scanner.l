@@ -28,6 +28,7 @@ MIENTRAS            (?i:mientras)
 PARAR               (?i:parar)
 CONTINUAR           (?i:continuar)
 REGRESAR            (?i:regresar)
+INCLUIR             (?i:incluir)
 
 IDENTIFIER          [a-zA-Z][a-zA-Z0-9_]*
 
@@ -68,6 +69,7 @@ WHITESPACE          [\ \f\r\t\v]+
 {PARAR}             { return PARAR; }
 {CONTINUAR}         { return CONTINUAR; }
 {REGRESAR}          { return REGRESAR; }
+{INCLUIR}           { return INCLUIR; }
 
 "+"                 { yylval.value.integer = OP_ADD; return ADD; }
 "-"                 { yylval.value.integer = OP_SUB; return SUB; }
