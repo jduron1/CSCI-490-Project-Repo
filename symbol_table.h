@@ -42,9 +42,8 @@ typedef struct StorageNodeStruct {
     int inferred_type;
     ValueType *vals;
     ASTNode *assigned;
-    char *array_size;
-    //ASTNode *array_size;
-    char **indices; //TODO: change to array of ASTNode
+    char *array_size; // TODO: change to ASTNode
+    char **indices; // TODO: change to array of ASTNode
     int index_count;
     int cur_idx;
     Argument *args;
