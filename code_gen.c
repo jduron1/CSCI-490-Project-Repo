@@ -15,10 +15,10 @@ void generateSimpleCode(FILE *of, ASTNode *node) {
 
     switch (simple_node -> statement_type) {
         case 0:
-            fprintf(of, "continue;\n");
+            fprintf(of, "break;\n");
             break;
         case 1:
-            fprintf(of, "break;\n");
+            fprintf(of, "continue;\n");
             break;
         default:
             break;
