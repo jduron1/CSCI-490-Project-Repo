@@ -16,6 +16,7 @@ func sieveOfEratosthenes(ent n) -> vacio {
                 j += k;
             }
         }
+        
         k += 1;
     }
 

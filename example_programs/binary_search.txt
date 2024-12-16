@@ -1,9 +1,6 @@
 func binarySearch(ent arr[], ent size, ent key) -> ent {
-    ent low, high, mid, res;
-
-    low = 0;
-    high = size - 1;
-    res = -1;
+    ent low = 0, mid, high = size - 1;
+    ent res = -1;
 
     mientras low <= high {
         mid = low + (high - low) / 2;
@@ -24,12 +21,14 @@ func binarySearch(ent arr[], ent size, ent key) -> ent {
 }
 
 func principal() -> ent {
-    ent array[] = {2, 3, 4, 10, 40}, size, key, res;
+    ent array[] = {2, 3, 4, 10, 40};
+    ent size = 0, key = 10;
 
-    size = 5;
-    key = 10;
+    por ent n en array {
+        size += 1;
+    }
 
-    res = binarySearch(array, size, key);
+    ent res = binarySearch(array, size, key);
 
     si res == -1 {
         imprimir("Elemento no encontrado\n");

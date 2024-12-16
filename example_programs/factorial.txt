@@ -1,24 +1,16 @@
 func factorial(ent n) -> ent {
+    ent resultado = 1;
     ent i;
-    ent resultado;
 
-    resultado = 1;
-
-    si n < 0 {
-        imprimir("No se puede calcular el factorial de un numero negativo\n");
-        resultado = n;
-    } sino {
-        por i en 1...n {
-            resultado *= i;
-        }
+    por i en 2...n {
+        resultado *= i;
     }
 
     regresar resultado;
 }
 
 func principal() -> ent {
-    ent n;
-    n = 5;
+    ent n = 5;
 
     imprimir("El factorial de ", n, " es ", factorial(n), "\n");
 

@@ -12,9 +12,8 @@ func fib(ent n) -> ent {
     regresar numeros[n];
 }
 
-func main() -> ent {
+func principal() -> ent {
     ent n = 10;
-    n = 10;
 
     imprimir(fib(n), "\n");
 
